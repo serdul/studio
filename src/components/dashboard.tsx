@@ -22,11 +22,12 @@ export function Dashboard({ subjects, onTopicSelect }: DashboardProps) {
       {subjects.map((subject) => {
         const sortedTopics = [...subject.topics].sort((a, b) => b.count - a.count);
         const hasData = sortedTopics.some(t => t.count > 0);
+        const Icon = subject.icon;
         
         return (
           <Card key={subject.name} className="flex flex-col">
             <CardHeader className="flex flex-row items-center gap-4">
-              {subject.icon && <subject.icon className="h-8 w-8 text-accent" />}
+              {Icon && <Icon className="h-8 w-8 text-accent" />}
               <div>
                 <CardTitle>{subject.name}</CardTitle>
                 <CardDescription>Frequently tested topics</CardDescription>
