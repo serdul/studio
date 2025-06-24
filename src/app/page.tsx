@@ -1,3 +1,149 @@
+"use client";
+
+import { useState, useEffect } from 'react';
+import type { Subject, Topic, ClassifiedTopic } from '@/lib/types';
+import { MASTER_SUBJECTS, MOCK_QUESTIONS } from '@/lib/mockData';
+import { classifyQuestionAction } from '@/app/actions';
+import { FileUploader } from '@/components/file-uploader';
+import { Dashboard } from '@/components/dashboard';
+import { TopicDetailSheet } from '@/components/topic-detail-sheet';
+import { Progress } from '@/components/ui/progress';
+import { useToast } from "@/hooks/use-toast";
+import { BookOpenCheck, BarChart3, Bot } from 'lucide-react';
+
 export default function Home() {
-  return <></>;
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    try {
+      const storedData = localStorage.getItem('medHotspotData');
+      if (storedData) {
+        const { subjects: storedSubjects } = JSON.parse(storedData);
+        setSubjects(storedSubjects);
+      } else {
+        setSubjects(MASTER_SUBJECTS);
+      }
+    } catch (error) {
+      console.error("Failed to load data from localStorage", error);
+      setSubjects(MASTER_SUBJECTS);
+    }
+  }, []);
+
+  const handleFileUpload = async (file: File) => {
+    setIsLoading(true);
+    setProgress(0);
+    
+    // Flatten master topic list for the AI
+    const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => topic.name)).join(', ');
+
+    const newSubjects: Subject[] = JSON.parse(JSON.stringify(subjects));
+    
+    // Simulate processing questions from the PDF
+    for (let i = 0; i < MOCK_QUESTIONS.length; i++) {
+      const question = MOCK_QUESTIONS[i];
+      try {
+        const result: ClassifiedTopic | null = await classifyQuestionAction(question, masterTopicList);
+
+        if (result && result.topic !== "Other") {
+          let topicFound = false;
+          for (const subject of newSubjects) {
+            const topicIndex = subject.topics.findIndex(t => t.name === result.topic);
+            if (topicIndex !== -1) {
+              subject.topics[topicIndex].count += 1;
+              if (!subject.topics[topicIndex].files.includes(file.name)) {
+                subject.topics[topicIndex].files.push(file.name);
+              }
+              topicFound = true;
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error classifying question: ${question}`, error);
+        toast({
+          variant: "destructive",
+          title: "Classification Error",
+          description: "An error occurred while classifying a question.",
+        });
+      }
+      setProgress(((i + 1) / MOCK_QUESTIONS.length) * 100);
+    }
+
+    try {
+      localStorage.setItem('medHotspotData', JSON.stringify({ subjects: newSubjects }));
+      setSubjects(newSubjects);
+      toast({
+        title: "Processing Complete",
+        description: `${file.name} has been analyzed and added to the dashboard.`,
+      });
+    } catch (error) {
+      console.error("Failed to save data to localStorage", error);
+      toast({
+        variant: "destructive",
+        title: "Storage Error",
+        description: "Could not save the analysis results.",
+      });
+    }
+
+    setIsLoading(false);
+  };
+
+  const handleTopicSelect = (topic: Topic) => {
+    setSelectedTopic(topic);
+  };
+
+  const isDataEmpty = subjects.every(s => s.topics.every(t => t.count === 0));
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpenCheck className="h-7 w-7 text-primary" />
+            <h1 className="text-2xl font-bold text-foreground">MedHotspot</h1>
+          </div>
+          <FileUploader onFileUpload={handleFileUpload} disabled={isLoading} />
+        </div>
+      </header>
+
+      <main className="flex-1 container py-8">
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4">
+            <Bot className="h-12 w-12 text-primary animate-bounce" />
+            <p className="text-lg font-medium text-foreground">AI is analyzing your document...</p>
+            <p className="text-muted-foreground">This may take a moment.</p>
+            <Progress value={progress} className="w-full max-w-md mt-4" />
+          </div>
+        ) : (
+          <>
+            {isDataEmpty ? (
+              <div className="text-center py-20">
+                <BarChart3 className="mx-auto h-16 w-16 text-muted-foreground" />
+                <h2 className="mt-4 text-2xl font-semibold">Welcome to your Hot Zone Dashboard</h2>
+                <p className="mt-2 text-muted-foreground">Upload a medical exam paper to get started.</p>
+              </div>
+            ) : (
+              <Dashboard subjects={subjects} onTopicSelect={handleTopicSelect} />
+            )}
+          </>
+        )}
+      </main>
+
+      <TopicDetailSheet
+        topic={selectedTopic}
+        open={!!selectedTopic}
+        onOpenChange={(open) => {
+          if (!open) setSelectedTopic(null);
+        }}
+      />
+
+      <footer className="py-4 text-center text-sm text-muted-foreground">
+        Built with AI by Firebase Studio.
+      </footer>
+    </div>
+  );
 }
