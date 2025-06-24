@@ -23,7 +23,23 @@ export default function Home() {
       const storedData = localStorage.getItem('medHotspotData');
       if (storedData) {
         const { subjects: storedSubjects } = JSON.parse(storedData);
-        setSubjects(storedSubjects);
+        const mergedSubjects = MASTER_SUBJECTS.map(masterSubject => {
+            const storedSubject = storedSubjects.find((s: Subject) => s.name === masterSubject.name);
+            if (!storedSubject) {
+                return masterSubject;
+            }
+
+            const mergedTopics = masterSubject.topics.map(masterTopic => {
+                const storedTopic = storedSubject.topics.find((t: Topic) => t.name === masterTopic.name);
+                return storedTopic ? { ...masterTopic, ...storedTopic } : masterTopic;
+            });
+
+            return {
+                ...masterSubject,
+                topics: mergedTopics,
+            };
+        });
+        setSubjects(mergedSubjects);
       } else {
         setSubjects(MASTER_SUBJECTS);
       }
@@ -40,7 +56,13 @@ export default function Home() {
     // Flatten master topic list for the AI
     const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => topic.name)).join(', ');
 
-    const newSubjects: Subject[] = JSON.parse(JSON.stringify(subjects));
+    const newSubjects: Subject[] = subjects.map(s => ({
+      ...s,
+      topics: s.topics.map(t => ({
+        ...t,
+        files: [...t.files],
+      })),
+    }));
     
     // Simulate processing questions from the PDF
     for (let i = 0; i < MOCK_QUESTIONS.length; i++) {
