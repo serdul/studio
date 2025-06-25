@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview A flow for processing an entire exam document.
- * It extracts text from the document, identifies questions,
+ * It uses an AI prompt to extract questions from the document text,
  * classifies each question, and returns the aggregated results.
  */
 
@@ -25,9 +25,19 @@ export async function processDocument(
   return processDocumentFlow(input);
 }
 
-// A regex to split text into questions.
-// It looks for a number followed by a period or parenthesis and a space.
-const questionRegex = /\d+[.)]\s+([\s\S]*?)(?=\n\d+[.)]\s+|$)/g;
+const extractQuestionsPrompt = ai.definePrompt({
+    name: 'extractQuestionsFromDocument',
+    input: { schema: z.object({ documentText: z.string() }) },
+    output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete multiple-choice question, including the stem and all options.")) }) },
+    prompt: `You are an expert at parsing text from medical exam documents. 
+    From the document text provided below, extract all the multiple-choice questions.
+    Each item in the output array should be a single string containing the full question stem and all of its associated options (e.g., a, b, c, d, e).
+    Ignore any text that is not part of a question, such as page headers, footers, page numbers, or compiler names.
+
+    Document Text:
+    {{{documentText}}}
+    `,
+});
 
 const processDocumentFlow = ai.defineFlow(
   {
@@ -40,21 +50,13 @@ const processDocumentFlow = ai.defineFlow(
       const pdf = (await import('pdf-parse')).default;
       const fileBuffer = Buffer.from(fileBufferStr, 'base64');
       const data = await pdf(fileBuffer);
-
       const text = data.text;
-      const questions: string[] = [];
-      let match;
-      while ((match = questionRegex.exec(text)) !== null) {
-          questions.push(match[1].trim());
-      }
+
+      const extractionResult = await extractQuestionsPrompt({ documentText: text });
+      const questions = extractionResult.output?.questions || [];
       
       if (questions.length === 0) {
-        // Fallback: if regex fails, split by newline and filter for longer lines that are likely questions.
-        questions.push(...text.split('\n').filter(line => line.trim().length > 50));
-      }
-
-      if (questions.length === 0) {
-        console.log("No questions found in the document.");
+        console.log("AI could not identify any questions in the document.");
         return [];
       }
 
