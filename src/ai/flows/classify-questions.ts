@@ -10,10 +10,10 @@ import {
   type ClassifyQuestionsInput,
   ClassifyQuestionsOutputSchema,
   type ClassifyQuestionsOutput,
+  type ClassifiedQuestion,
 } from '@/ai/schemas';
 import { classifyQuestion } from './classify-exam-questions';
 import { MASTER_SUBJECTS } from '@/lib/mockData';
-import type { ClassifiedQuestion } from '@/ai/schemas';
 
 
 export async function classifyQuestions(
