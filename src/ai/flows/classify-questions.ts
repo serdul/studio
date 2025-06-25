@@ -40,12 +40,22 @@ const classifyQuestionsFlow = ai.defineFlow(
       classifyQuestion({ question, subjectList })
     );
     
-    const results = await Promise.all(classificationPromises);
+    // Use Promise.allSettled to handle individual failures without crashing the entire batch.
+    const settledResults = await Promise.allSettled(classificationPromises);
 
-    // Filter out any null results or unclassified items.
-    const classifiedQuestions: ClassifiedQuestion[] = results.filter((result): result is ClassifiedQuestion => 
-        !!result && !!result.subject && !!result.topic
-    );
+    const classifiedQuestions: ClassifiedQuestion[] = [];
+    for (const result of settledResults) {
+      if (result.status === 'fulfilled') {
+        const classified = result.value;
+        // Ensure the fulfilled promise has valid data before adding.
+        if (classified && classified.subject && classified.topic) {
+          classifiedQuestions.push(classified);
+        }
+      } else {
+        // Log the reason for the failed promise for debugging, but don't crash.
+        console.error("A question failed to classify:", result.reason);
+      }
+    }
     
     return { classifiedQuestions };
   }

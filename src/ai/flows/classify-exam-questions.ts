@@ -13,6 +13,7 @@ import {
   ClassifyQuestionInputSchema,
   type ClassifyQuestionInput,
   ClassifiedQuestionSchema,
+  type ClassifiedQuestion,
 } from '@/ai/schemas';
 
 export async function classifyQuestion(
@@ -70,10 +71,16 @@ const classifyQuestionFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await classifyQuestionPrompt(input);
+    
+    if (!output || !output.subject || !output.topic) {
+        // This will be caught by Promise.allSettled in the calling flow.
+        throw new Error('AI failed to return a valid classification for the question.');
+    }
+
     return {
-      subject: output?.subject || '',
-      topic: output?.topic || '',
-      rationale: output?.rationale || 'No rationale provided by AI.',
+      subject: output.subject,
+      topic: output.topic,
+      rationale: output.rationale || 'No rationale provided by AI.',
     };
   }
 );
