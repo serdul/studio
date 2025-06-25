@@ -2,8 +2,8 @@
 'use server';
 
 import { extractQuestions } from '@/ai/flows/extract-questions';
-import { classifyQuestions } from '@/ai/flows/classify-questions';
-import type { ClassifiedQuestion } from '@/ai/schemas';
+import { explainQuestion } from '@/ai/flows/explain-question-flow';
+import type { ExplainQuestionOutput } from '@/ai/schemas';
 
 
 function ensureApiKey() {
@@ -27,15 +27,15 @@ export async function extractQuestionsAction(
   }
 }
 
-export async function classifyQuestionsAction(
-  questions: string[]
-): Promise<ClassifiedQuestion[]> {
+export async function explainQuestionAction(
+  question: string
+): Promise<ExplainQuestionOutput> {
   ensureApiKey();
   try {
-    const result = await classifyQuestions({ questions });
-    return result.classifiedQuestions;
+    const result = await explainQuestion({ question });
+    return result;
   } catch (error) {
-    console.error('Error in classifyQuestionsAction:', error);
+    console.error('Error in explainQuestionAction:', error);
     throw new Error(String(error));
   }
 }

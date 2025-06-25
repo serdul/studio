@@ -7,34 +7,26 @@ export const ExtractQuestionsInputSchema = z.object({
 export type ExtractQuestionsInput = z.infer<typeof ExtractQuestionsInputSchema>;
 
 export const ExtractQuestionsOutputSchema = z.object({
-  questions: z.array(z.string().describe("A single, complete question that has been grammatically corrected and polished. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")),
+  questions: z.array(z.string().describe("A single, complete question that has been grammatically corrected and polished. For MCQs, include the stem and all options. Exclude any provided answers.")),
 });
 export type ExtractQuestionsOutput = z.infer<typeof ExtractQuestionsOutputSchema>;
 
 
-// From classify-exam-questions.ts
-export const ClassifyQuestionInputSchema = z.object({
-  question: z.string().describe('The question to classify.'),
-  subjectList: z.array(z.string()).describe('A list of predefined medical subjects to classify against.'),
+// From explain-question-flow.ts
+export const ExplainQuestionInputSchema = z.object({
+  question: z.string().describe('A single multiple-choice question, including all options.'),
 });
-export type ClassifyQuestionInput = z.infer<typeof ClassifyQuestionInputSchema>;
+export type ExplainQuestionInput = z.infer<typeof ExplainQuestionInputSchema>;
 
-export const ClassifiedQuestionSchema = z.object({
-  question: z.string().describe('The original question text.'),
-  subject: z.string().describe('The classified subject for the question.'),
-  topic: z.string().describe('The dynamically identified, generalized topic for the question.'),
-  rationale: z.string().optional().describe("The AI's explanation for its classification choice."),
+const DistractorExplanationSchema = z.object({
+    option: z.string().describe("The letter or text of the incorrect option (e.g., 'B' or 'Pulmonary Embolism')."),
+    explanation: z.string().describe("The detailed reason why this option is incorrect."),
 });
-export type ClassifiedQuestion = z.infer<typeof ClassifiedQuestionSchema>;
 
-
-// From classify-questions.ts
-export const ClassifyQuestionsInputSchema = z.object({
-  questions: z.array(z.string()),
+export const ExplainQuestionOutputSchema = z.object({
+  correctAnswer: z.string().describe("The letter of the correct answer (e.g., 'A', 'B', 'C')."),
+  explanation: z.string().describe('A detailed explanation of why the correct answer is correct.'),
+  distractorExplanations: z.array(DistractorExplanationSchema).describe('An array of explanations for each incorrect option.'),
+  citations: z.array(z.string()).describe('An array of credible medical sources to support the explanation.'),
 });
-export type ClassifyQuestionsInput = z.infer<typeof ClassifyQuestionsInputSchema>;
-
-export const ClassifyQuestionsOutputSchema = z.object({
-  classifiedQuestions: z.array(ClassifiedQuestionSchema),
-});
-export type ClassifyQuestionsOutput = z.infer<typeof ClassifyQuestionsOutputSchema>;
+export type ExplainQuestionOutput = z.infer<typeof ExplainQuestionOutputSchema>;
