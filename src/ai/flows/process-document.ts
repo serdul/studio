@@ -49,11 +49,11 @@ const processDocumentFlow = ai.defineFlow(
       }
       
       if (questions.length === 0) {
-        // Fallback: if regex fails, split by newline and filter for likely questions
-        questions.push(...text.split('\n').filter(line => line.trim().length > 30 && line.includes('?')));
+        // Fallback: if regex fails, split by newline and filter for longer lines that are likely questions.
+        questions.push(...text.split('\n').filter(line => line.trim().length > 50));
       }
 
-      if (questions.length === 0) {
+      if (questions.length === t) {
         console.log("No questions found in the document.");
         return [];
       }
