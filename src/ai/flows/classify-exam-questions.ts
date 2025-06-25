@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview A flow for classifying medical questions into subjects and topics.
- * This file implements a robust, concurrent approach to question classification.
+ * This file implements a robust, concurrent approach to question classification by processing questions in batches.
  */
 
 import {ai} from '@/ai/genkit';
@@ -13,54 +13,70 @@ import {
 import {z} from 'genkit';
 
 // This is the main function exported to the rest of the application.
-// It orchestrates the classification of multiple questions concurrently.
+// It orchestrates the classification of multiple questions by processing them in batches to avoid overwhelming the server or hitting API rate limits.
 export async function classifyQuestions(
   input: ClassifyQuestionsInput
 ): Promise<{classifiedQuestions: ClassifiedQuestion[]}> {
-  const promises = input.questions.map(question =>
-    classifyQuestionFlow({question})
-  );
-
-  const results = await Promise.allSettled(promises);
-
   const classifiedQuestions: ClassifiedQuestion[] = [];
-  results.forEach((result, index) => {
-    if (result.status === 'fulfilled' && result.value) {
-      // Combine the original question with the AI's classification.
-      const fullQuestionData: ClassifiedQuestion = {
-        question: input.questions[index],
-        ...result.value,
-      };
+  const batchSize = 10; // Process 10 questions at a time for stability.
 
-      // Provide a default rationale if the AI omits it.
-      if (!fullQuestionData.rationale) {
-        fullQuestionData.rationale =
-          'The AI did not provide a rationale for this question.';
+  for (let i = 0; i < input.questions.length; i += batchSize) {
+    const batch = input.questions.slice(i, i + batchSize);
+    const promises = batch.map(question => classifyQuestionFlow({question}));
+
+    const results = await Promise.allSettled(promises);
+
+    results.forEach((result, index) => {
+      const originalQuestionIndex = i + index;
+      if (result.status === 'fulfilled' && result.value) {
+        // Combine the original question with the AI's classification.
+        const fullQuestionData: ClassifiedQuestion = {
+          question: input.questions[originalQuestionIndex],
+          ...result.value,
+        };
+
+        // Provide a default rationale if the AI omits it.
+        if (!fullQuestionData.rationale) {
+          fullQuestionData.rationale =
+            'The AI did not provide a rationale for this question.';
+        }
+
+        classifiedQuestions.push(fullQuestionData);
+      } else if (result.status === 'rejected') {
+        console.error(
+          `Failed to classify question #${originalQuestionIndex + 1}: "${input.questions[
+            originalQuestionIndex
+          ].substring(0, 100)}..."`,
+          result.reason
+        );
+        // We are choosing to skip failed questions instead of crashing the app.
       }
-      
-      classifiedQuestions.push(fullQuestionData);
-    } else if (result.status === 'rejected') {
-      console.error(
-        `Failed to classify question #${index + 1}: "${input.questions[
-          index
-        ].substring(0, 100)}..."`,
-        result.reason
-      );
-      // We are choosing to skip failed questions instead of crashing the app.
-    }
-  });
+    });
+  }
 
   return {classifiedQuestions};
 }
 
 // Define a schema for just the parts the AI will generate to save tokens.
 const AIClassificationResultSchema = z.object({
-  subject: z.string().describe("The major medical subject the question belongs to (e.g., 'Cardiology')."),
-  topic: z.string().describe("The specific, granular topic being tested (e.g., 'Atrial Fibrillation')."),
-  rationale: z.string().optional().describe("A brief explanation for the chosen classification."),
+  subject: z
+    .string()
+    .describe(
+      "The major medical subject the question belongs to (e.g., 'Cardiology')."
+    ),
+  topic: z
+    .string()
+    .describe(
+      "The specific, granular topic being tested (e.g., 'Atrial Fibrillation')."
+    ),
+  rationale: z
+    .string()
+    .optional()
+    .describe(
+      'A brief explanation for the chosen classification.'
+    ),
 });
 type AIClassificationResult = z.infer<typeof AIClassificationResultSchema>;
-
 
 // This flow is for classifying a SINGLE question.
 const classifyQuestionFlow = ai.defineFlow(
@@ -80,7 +96,6 @@ const classifyQuestionFlow = ai.defineFlow(
     return output;
   }
 );
-
 
 // This prompt is for a SINGLE question.
 const classifyQuestionPrompt = ai.definePrompt({
