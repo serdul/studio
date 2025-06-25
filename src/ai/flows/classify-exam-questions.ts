@@ -39,7 +39,9 @@ const prompt = ai.definePrompt({
   Return the classified topic and the confidence level of the classification.
 
   Question: {{{question}}}
-  Master Topic List: {{{masterTopicList}}}
+
+  Master Topic List:
+{{{masterTopicList}}}
 
   Make sure the topic is exactly from the Master Topic List.
   If the topic is not in the list, return "Other".

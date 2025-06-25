@@ -98,7 +98,7 @@ export default function Home() {
 
             setProgress(30);
 
-            const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => topic.name)).join(', ');
+            const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => `- ${topic.name}`)).join('\n');
             const { questionsFound, classifiedTopics } = await processDocumentAction(fileDataUri, masterTopicList);
             
             setProgress(70);
@@ -134,7 +134,7 @@ export default function Home() {
 
             for (const result of classifiedTopics) {
                 for (const subject of newSubjects) {
-                    const topicIndex = subject.topics.findIndex(t => t.name === result.topic);
+                    const topicIndex = subject.topics.findIndex(t => t.name.trim().toLowerCase() === result.topic.trim().toLowerCase());
                     if (topicIndex !== -1) {
                         subject.topics[topicIndex].count += 1;
                         if (!subject.topics[topicIndex].files.includes(file.name)) {
@@ -204,7 +204,7 @@ export default function Home() {
         <div className="text-center py-20">
           <BarChart3 className="mx-auto h-16 w-16 text-muted-foreground" />
           <h2 className="mt-4 text-2xl font-semibold">Welcome to your Hot Zone Dashboard</h2>
-          <p className="mt-2 text-muted-foreground">Upload a medical exam paper to get started.</p>
+          <p className="mt-2 text-muted-foreground">Upload an exam paper to get started.</p>
         </div>
       );
     }

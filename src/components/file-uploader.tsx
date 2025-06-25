@@ -30,7 +30,7 @@ export function FileUploader({ onFileUpload, disabled }: FileUploaderProps) {
         ref={fileInputRef}
         onChange={handleFileChange}
         className="hidden"
-        accept=".pdf"
+        accept=".pdf,.png,.jpg,.jpeg"
         disabled={disabled}
       />
       <Button onClick={handleButtonClick} disabled={disabled} className="bg-accent hover:bg-accent/90 text-accent-foreground">
@@ -39,7 +39,7 @@ export function FileUploader({ onFileUpload, disabled }: FileUploaderProps) {
         ) : (
           <Upload className="mr-2 h-4 w-4" />
         )}
-        <span>{disabled ? "Processing..." : "Upload PDF"}</span>
+        <span>{disabled ? "Processing..." : "Upload File"}</span>
       </Button>
     </>
   );
