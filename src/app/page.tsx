@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { Subject, Topic, ClassifiedTopic } from '@/lib/types';
 import { MASTER_SUBJECTS, MOCK_QUESTIONS } from '@/lib/mockData';
 import { classifyQuestionAction } from '@/app/actions';
@@ -10,6 +10,7 @@ import { TopicDetailSheet } from '@/components/topic-detail-sheet';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from "@/hooks/use-toast";
 import { BookOpenCheck, BarChart3, Bot } from 'lucide-react';
+import { UploadedFilesList } from '@/components/uploaded-files-list';
 
 export default function Home() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -26,7 +27,10 @@ export default function Home() {
         const mergedSubjects = MASTER_SUBJECTS.map(masterSubject => {
             const storedSubject = storedSubjects.find((s: Subject) => s.name === masterSubject.name);
             if (!storedSubject) {
-                return masterSubject;
+                return {
+                  ...masterSubject,
+                  icon: masterSubject.icon, // Re-assign the icon component
+                };
             }
 
             const mergedTopics = masterSubject.topics.map(masterTopic => {
@@ -36,6 +40,7 @@ export default function Home() {
 
             return {
                 ...masterSubject,
+                icon: masterSubject.icon, // Re-assign the icon component
                 topics: mergedTopics,
             };
         });
@@ -48,6 +53,18 @@ export default function Home() {
       setSubjects(MASTER_SUBJECTS);
     }
   }, []);
+
+  const uploadedFiles = useMemo(() => {
+    const allFiles = new Set<string>();
+    subjects.forEach(subject => {
+        subject.topics.forEach(topic => {
+            topic.files.forEach(file => {
+                allFiles.add(file);
+            });
+        });
+    });
+    return Array.from(allFiles).sort();
+  }, [subjects]);
 
   const handleFileUpload = async (file: File) => {
     setIsLoading(true);
@@ -62,6 +79,7 @@ export default function Home() {
         ...t,
         files: [...t.files],
       })),
+      icon: s.icon, // Preserve the icon component during clone
     }));
     
     // Simulate processing questions from the PDF
@@ -118,8 +136,6 @@ export default function Home() {
     setSelectedTopic(topic);
   };
 
-  const isDataEmpty = subjects.every(s => s.topics.every(t => t.count === 0));
-
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -142,14 +158,21 @@ export default function Home() {
           </div>
         ) : (
           <>
-            {isDataEmpty ? (
+            {uploadedFiles.length === 0 ? (
               <div className="text-center py-20">
                 <BarChart3 className="mx-auto h-16 w-16 text-muted-foreground" />
                 <h2 className="mt-4 text-2xl font-semibold">Welcome to your Hot Zone Dashboard</h2>
                 <p className="mt-2 text-muted-foreground">Upload a medical exam paper to get started.</p>
               </div>
             ) : (
-              <Dashboard subjects={subjects} onTopicSelect={handleTopicSelect} />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                  <div className="lg:col-span-2">
+                      <Dashboard subjects={subjects} onTopicSelect={handleTopicSelect} />
+                  </div>
+                  <div className="lg:col-span-1">
+                      <UploadedFilesList files={uploadedFiles} />
+                  </div>
+              </div>
             )}
           </>
         )}
