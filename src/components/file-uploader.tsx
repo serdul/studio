@@ -30,7 +30,7 @@ export function FileUploader({ onFileUpload, disabled }: FileUploaderProps) {
         ref={fileInputRef}
         onChange={handleFileChange}
         className="hidden"
-        accept=".pdf,.png,.jpg,.jpeg"
+        accept=".pdf"
         disabled={disabled}
       />
       <Button onClick={handleButtonClick} disabled={disabled} className="bg-accent hover:bg-accent/90 text-accent-foreground">

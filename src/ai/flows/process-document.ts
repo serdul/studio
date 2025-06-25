@@ -1,8 +1,9 @@
 'use server';
 /**
  * @fileOverview A flow for processing an entire exam document.
- * It uses a multi-modal AI prompt to extract questions from the document,
- * classifies each question, and returns the aggregated results.
+ * It converts each page of a PDF into an image, uses a multi-modal AI prompt
+ * to extract questions from each page image, classifies each question,
+ * and returns the aggregated results.
  */
 
 import {ai} from '@/ai/genkit';
@@ -10,8 +11,40 @@ import {z} from 'genkit';
 import { classifyExamQuestions } from './classify-exam-questions';
 import type { ClassifyExamQuestionsOutput } from './classify-exam-questions';
 
+import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
+import {createCanvas, type Canvas, type CanvasRenderingContext2D} from 'canvas';
+
+// Helper class to act as a factory for node-canvas instances.
+// pdf.js requires this to render pages in a Node.js environment.
+class NodeCanvasFactory {
+  create(width: number, height: number): { canvas: Canvas; context: CanvasRenderingContext2D } {
+    const canvas = createCanvas(width, height);
+    const context = canvas.getContext("2d");
+    return {
+      canvas,
+      context,
+    };
+  }
+
+  reset(canvasAndContext: { canvas: Canvas; context: CanvasRenderingContext2D }, width: number, height: number) {
+    canvasAndContext.canvas.width = width;
+    canvasAndContext.canvas.height = height;
+  }
+
+  destroy(canvasAndContext: { canvas: Canvas; context: CanvasRenderingContext2D }) {
+    canvasAndContext.canvas.width = 0;
+    canvasAndContext.canvas.height = 0;
+    // These lines are not strictly necessary with the 'canvas' package, but are good practice.
+    // @ts-ignore
+    canvasAndContext.canvas = null;
+    // @ts-ignore
+    canvasAndContext.context = null;
+  }
+}
+
+
 const ProcessDocumentInputSchema = z.object({
-  fileDataUri: z.string().describe("A file (PDF or image) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
+  fileDataUri: z.string().describe("A file (PDF) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:application/pdf;base64,<encoded_data>'."),
   masterTopicList: z.string().describe('A list of predefined topics.'),
 });
 export type ProcessDocumentInput = z.infer<typeof ProcessDocumentInputSchema>;
@@ -32,11 +65,11 @@ const extractQuestionsPrompt = ai.definePrompt({
     name: 'extractQuestionsFromDocument',
     input: { schema: z.object({ documentUri: z.string() }) },
     output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")) }) },
-    prompt: `You are an expert AI assistant specializing in parsing medical exam documents. Your task is to meticulously extract all questions from the provided document. The document is provided as media, which could be an image or a multi-page PDF. Analyze its visual layout and perform OCR as needed to extract the text.
+    prompt: `You are an expert AI assistant specializing in parsing medical exam documents. Your task is to meticulously extract all questions from the provided image of a document page. Analyze its visual layout and perform OCR as needed to extract the text.
 
 {{media url=documentUri}}
 
-Your goal is to identify and list every complete question.
+Your goal is to identify and list every complete question on this single page.
 
 **Question Formatting Rules:**
 
@@ -58,9 +91,41 @@ const processDocumentFlow = ai.defineFlow(
     outputSchema: ProcessDocumentOutputSchema,
   },
   async ({ fileDataUri, masterTopicList }) => {
-    const extractionResult = await extractQuestionsPrompt({ documentUri: fileDataUri });
-    const questions = extractionResult.output?.questions || [];
-    const questionsFound = questions.length;
+    const allQuestions: string[] = [];
+    const pdfData = Buffer.from(fileDataUri.split(',')[1], 'base64');
+
+    const pdfDocument = await pdfjs.getDocument({
+        data: pdfData,
+        disableWorker: true,
+    }).promise;
+
+    const numPages = pdfDocument.numPages;
+    const canvasFactory = new NodeCanvasFactory();
+
+    for (let i = 1; i <= numPages; i++) {
+        const page = await pdfDocument.getPage(i);
+        const viewport = page.getViewport({ scale: 2.0 }); // Use a higher scale for better OCR quality
+        const canvasAndContext = canvasFactory.create(viewport.width, viewport.height);
+
+        const renderContext = {
+            canvasContext: canvasAndContext.context,
+            viewport,
+            canvasFactory,
+        };
+
+        await page.render(renderContext).promise;
+        const imageDataUri = canvasAndContext.canvas.toDataURL('image/jpeg');
+
+        const extractionResult = await extractQuestionsPrompt({ documentUri: imageDataUri });
+        const questionsOnPage = extractionResult.output?.questions || [];
+        allQuestions.push(...questionsOnPage);
+        
+        // Clean up memory
+        page.cleanup();
+        canvasFactory.destroy(canvasAndContext);
+    }
+
+    const questionsFound = allQuestions.length;
     
     if (questionsFound === 0) {
       console.log("AI could not identify any questions in the document.");
@@ -68,7 +133,7 @@ const processDocumentFlow = ai.defineFlow(
     }
 
     // Concurrently classify all questions
-    const classificationPromises = questions.map(question =>
+    const classificationPromises = allQuestions.map(question =>
       classifyExamQuestions({ question, masterTopicList })
     );
     
