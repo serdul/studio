@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -204,7 +205,7 @@ export default function Home() {
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="icon">
-                    <Cog className="h-5 w-5" />
+                    <MoreVertical className="h-5 w-5" />
                     <span className="sr-only">More options</span>
                   </Button>
                 </DropdownMenuTrigger>
