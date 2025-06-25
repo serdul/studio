@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Subject, Topic, ClassifiedTopic } from '@/lib/types';
 import { MASTER_SUBJECTS, MOCK_QUESTIONS } from '@/lib/mockData';
 import { classifyQuestionAction } from '@/app/actions';
@@ -9,11 +10,17 @@ import { Dashboard } from '@/components/dashboard';
 import { TopicDetailSheet } from '@/components/topic-detail-sheet';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from "@/hooks/use-toast";
-import { BookOpenCheck, BarChart3, Bot, Info } from 'lucide-react';
+import { BookOpenCheck, BarChart3, Bot, Info, Cog, MoreVertical } from 'lucide-react';
 import { UploadedFilesList } from '@/components/uploaded-files-list';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { DashboardSkeleton } from '@/components/dashboard-skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function Home() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -22,6 +29,7 @@ export default function Home() {
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     try {
@@ -192,12 +200,23 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-foreground">MedHotspot</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/about">
-                <Info className="mr-2" /> How it Works
-              </Link>
-            </Button>
-            <FileUploader onFileUpload={handleFileUpload} disabled={isLoading} />
+             <FileUploader onFileUpload={handleFileUpload} disabled={isLoading} />
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Cog className="h-5 w-5" />
+                    <span className="sr-only">More options</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onSelect={() => router.push('/about')} className="cursor-pointer">
+                      <Info className="mr-2"/> How it Works
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => router.push('/settings')} className="cursor-pointer">
+                      <Cog className="mr-2"/> Settings
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
           </div>
         </div>
       </header>
