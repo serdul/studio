@@ -1,20 +1,20 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Subject, Topic, ProgressState, Question } from '@/lib/types';
+import type { Subject, Topic, Question, ProgressLogEntry, ClassifiedQuestion } from '@/lib/types';
 import { MASTER_SUBJECTS } from '@/lib/mockData';
-import { processDocumentAction } from '@/app/actions';
+import { extractQuestionsAction, classifyQuestionsAction } from '@/app/actions';
 import { FileUploader } from '@/components/file-uploader';
 import { Dashboard } from '@/components/dashboard';
 import { TopicDetailSheet } from '@/components/topic-detail-sheet';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from "@/hooks/use-toast";
-import { BookOpenCheck, BarChart3, Bot, Info, Cog, MoreVertical } from 'lucide-react';
+import { BookOpenCheck, BarChart3, Bot, Info, Cog, MoreVertical, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { UploadedFilesList } from '@/components/uploaded-files-list';
 import { Button } from '@/components/ui/button';
 import { DashboardSkeleton } from '@/components/dashboard-skeleton';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,11 +25,12 @@ import {
 export default function Home() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [progressState, setProgressState] = useState<ProgressState | null>(null);
+  const [progressLog, setProgressLog] = useState<ProgressLogEntry[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
+  const isCancelledRef = useRef(false);
 
   useEffect(() => {
     try {
@@ -67,84 +68,75 @@ export default function Home() {
 
   const handleFileUpload = async (file: File) => {
     setIsLoading(true);
-    setProgressState({ percentage: 0, message: "Starting upload..." });
+    isCancelledRef.current = false;
+    setProgressLog([{ message: "Preparing file...", status: 'loading' }]);
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
 
     reader.onload = async () => {
         try {
-            const fileDataUri = reader.result as string;
-            if (!fileDataUri) {
-                throw new Error("Failed to read file.");
+            if (isCancelledRef.current) {
+                handleCancelation();
+                return;
             }
-
-            setProgressState({ percentage: 25, message: "Preparing document for analysis..." });
             
-            setProgressState(prev => ({ ...prev!, percentage: 50, message: "AI is extracting and classifying questions..." }));
-            const { questionsFound, classifiedQuestions } = await processDocumentAction(fileDataUri);
-            
-            setProgressState(prev => ({ ...prev!, percentage: 80, message: "Finalizing results..." }));
+            const fileDataUri = reader.result as string;
+            if (!fileDataUri) throw new Error("Failed to read file.");
 
-            if (questionsFound === 0) {
+            setProgressLog(prev => [
+                { message: "File prepared and uploaded.", status: 'done' },
+                { message: "AI is extracting questions from document...", status: 'loading' }
+            ]);
+
+            const allQuestions = await extractQuestionsAction(fileDataUri);
+            
+            if (isCancelledRef.current) { handleCancelation(); return; }
+
+            if (allQuestions.length === 0) {
                 toast({
                     variant: "destructive",
                     title: "Analysis Failed",
                     description: "The AI could not identify any questions in the document.",
                 });
                 setIsLoading(false);
-                setProgressState(null);
+                setProgressLog([]);
                 return;
             }
+
+            setProgressLog(prev => [
+                ...prev,
+                { message: `Found ${allQuestions.length} questions.`, status: 'done' },
+                { message: "AI is classifying topics...", status: 'loading' }
+            ]);
+
+            const classifiedQuestions = await classifyQuestionsAction(allQuestions);
+            
+            if (isCancelledRef.current) { handleCancelation(); return; }
 
             if (classifiedQuestions.length === 0) {
                 toast({
                     variant: "destructive",
                     title: "Analysis Incomplete",
-                    description: `The AI found ${questionsFound} questions, but none could be classified into the existing topics.`,
+                    description: `The AI found ${allQuestions.length} questions, but none could be classified into subjects.`,
                 });
                 setIsLoading(false);
-                setProgressState(null);
+                setProgressLog([]);
                 return;
             }
 
-            setProgressState(prev => ({ ...prev!, percentage: 95, message: "Updating dashboard..." }));
+            setProgressLog(prev => [
+                ...prev,
+                { message: `Classification complete. Found ${classifiedQuestions.length} valid topics.`, status: 'done' },
+                { message: "Updating dashboard...", status: 'loading' }
+            ]);
             
-            const newSubjects: Subject[] = JSON.parse(JSON.stringify(subjects));
+            updateStateWithNewData(classifiedQuestions, file.name);
 
-            for (const result of classifiedQuestions) {
-                const subjectIndex = newSubjects.findIndex(s => s.name === result.subject);
-
-                if (subjectIndex !== -1) {
-                    const targetSubject = newSubjects[subjectIndex];
-                    // Normalize topic names for comparison
-                    const topicNameLower = result.topic.trim().toLowerCase();
-                    let topicIndex = targetSubject.topics.findIndex(t => t.name.trim().toLowerCase() === topicNameLower);
-
-                    const newQuestion: Question = {
-                        text: result.question,
-                        sourceFile: file.name
-                    };
-
-                    if (topicIndex !== -1) {
-                        // Topic exists, just add the question
-                        targetSubject.topics[topicIndex].questions.push(newQuestion);
-                    } else {
-                        // New topic, create it and add the question
-                        const newTopic: Topic = {
-                            name: result.topic.trim(), // Use the trimmed original-casing topic name
-                            questions: [newQuestion]
-                        };
-                        targetSubject.topics.push(newTopic);
-                    }
-                }
-            }
-
-            const subjectsToStore = newSubjects.map(({ icon, ...rest }) => rest);
-            localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
-            setSubjects(newSubjects);
-            
-            setProgressState({ percentage: 100, message: "Analysis complete!"});
+            setProgressLog(prev => [
+                ...prev,
+                { message: "Dashboard updated!", status: 'done' }
+            ]);
 
             toast({
                 title: "Processing Complete",
@@ -153,17 +145,21 @@ export default function Home() {
 
         } catch (error) {
             console.error("Error processing file:", error);
+            const errorMessage = String(error);
+            setProgressLog(prev => [...prev, { message: errorMessage, status: 'error' }]);
             toast({
                 variant: "destructive",
                 title: "An Error Occurred During Analysis",
-                description: String(error),
+                description: errorMessage,
             });
         } finally {
-            // Give a moment for the user to see the "complete" message before resetting state
-            setTimeout(() => {
-                setIsLoading(false);
-                setProgressState(null);
-            }, 1000);
+            if (!isCancelledRef.current) {
+              // Give a moment for the user to see the final log before resetting state
+              setTimeout(() => {
+                  setIsLoading(false);
+                  setProgressLog([]);
+              }, 5000);
+            }
         }
     };
 
@@ -175,9 +171,57 @@ export default function Home() {
             description: "There was an error reading the uploaded file.",
         });
         setIsLoading(false);
-        setProgressState(null);
+        setProgressLog([]);
     };
   };
+
+  const updateStateWithNewData = (classifiedQuestions: ClassifiedQuestion[], fileName: string) => {
+      const newSubjects: Subject[] = JSON.parse(JSON.stringify(subjects));
+
+      for (const result of classifiedQuestions) {
+          const subjectIndex = newSubjects.findIndex(s => s.name === result.subject);
+
+          if (subjectIndex !== -1) {
+              const targetSubject = newSubjects[subjectIndex];
+              const topicNameLower = result.topic.trim().toLowerCase();
+              let topicIndex = targetSubject.topics.findIndex(t => t.name.trim().toLowerCase() === topicNameLower);
+
+              const newQuestion: Question = {
+                  text: result.question,
+                  sourceFile: fileName
+              };
+
+              if (topicIndex !== -1) {
+                  targetSubject.topics[topicIndex].questions.push(newQuestion);
+              } else {
+                  const newTopic: Topic = {
+                      name: result.topic.trim(),
+                      questions: [newQuestion]
+                  };
+                  targetSubject.topics.push(newTopic);
+              }
+          }
+      }
+
+      const subjectsToStore = newSubjects.map(({ icon, ...rest }) => rest);
+      localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
+      setSubjects(newSubjects);
+  }
+
+  const handleCancelation = () => {
+    setIsLoading(false);
+    setProgressLog([]);
+    toast({
+        title: "Analysis Cancelled",
+        description: "The document analysis process has been stopped.",
+    });
+  }
+  
+  const handleCancelClick = () => {
+    isCancelledRef.current = true;
+    handleCancelation();
+  };
+
 
   const handleTopicSelect = (topic: Topic) => {
     setSelectedTopic(topic);
@@ -192,7 +236,6 @@ export default function Home() {
           (q: Question) => q.sourceFile !== fileName
         );
       }
-      // Also filter out topics that have no questions left
       subject.topics = subject.topics.filter(t => t.questions.length > 0);
     }
 
@@ -211,13 +254,33 @@ export default function Home() {
         return <DashboardSkeleton />;
     }
 
-    if (isLoading && progressState) {
+    if (isLoading) {
       return (
-        <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-          <Bot className="h-12 w-12 text-primary animate-bounce" />
-          <p className="text-xl font-medium text-foreground">AI In Progress</p>
-          <p className="text-muted-foreground max-w-md">{progressState.message}</p>
-          <Progress value={progressState.percentage} className="w-full max-w-md mt-4" />
+        <div className="flex justify-center items-center h-full">
+            <Card className="w-full max-w-lg">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Bot className="h-6 w-6 text-primary"/>
+                        AI Analysis in Progress
+                    </CardTitle>
+                    <CardDescription>Your document is being analyzed. Please do not close this window.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ul className="space-y-3 text-sm text-muted-foreground">
+                        {progressLog.map((log, index) => (
+                            <li key={index} className="flex items-center gap-3">
+                                {log.status === 'loading' && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+                                {log.status === 'done' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                                {log.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
+                                <span className={log.status === 'error' ? 'text-destructive' : ''}>{log.message}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </CardContent>
+                <CardFooter className="flex justify-end">
+                     <Button variant="outline" onClick={handleCancelClick}>Cancel</Button>
+                </CardFooter>
+            </Card>
         </div>
       );
     }

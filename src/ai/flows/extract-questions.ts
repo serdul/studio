@@ -1,42 +1,32 @@
 'use server';
 /**
- * @fileOverview A flow for processing an entire exam document.
- * It uses a multi-modal AI prompt to extract questions from the entire PDF,
- * classifies each question, and returns the aggregated results.
+ * @fileOverview A flow for extracting questions from a document.
+ * It uses a multi-modal AI prompt to extract questions from the entire file.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { classifyQuestion } from './classify-exam-questions';
-import { MASTER_SUBJECTS } from '@/lib/mockData';
 
-const ProcessDocumentInputSchema = z.object({
+const ExtractQuestionsInputSchema = z.object({
   fileDataUri: z.string().describe("A file (PDF or image) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
 });
-export type ProcessDocumentInput = z.infer<typeof ProcessDocumentInputSchema>;
+export type ExtractQuestionsInput = z.infer<typeof ExtractQuestionsInputSchema>;
 
-const ClassifiedQuestionSchema = z.object({
-    question: z.string(),
-    subject: z.string(),
-    topic: z.string(),
+const ExtractQuestionsOutputSchema = z.object({
+  questions: z.array(z.string().describe("A single, complete question that has been grammatically corrected and polished. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")),
 });
+export type ExtractQuestionsOutput = z.infer<typeof ExtractQuestionsOutputSchema>;
 
-const ProcessDocumentOutputSchema = z.object({
-  questionsFound: z.number(),
-  classifiedQuestions: z.array(ClassifiedQuestionSchema),
-});
-export type ProcessDocumentOutput = z.infer<typeof ProcessDocumentOutputSchema>;
-
-export async function processDocument(
-  input: ProcessDocumentInput
-): Promise<ProcessDocumentOutput> {
-  return processDocumentFlow(input);
+export async function extractQuestions(
+  input: ExtractQuestionsInput
+): Promise<ExtractQuestionsOutput> {
+  return extractQuestionsFlow(input);
 }
 
 const extractQuestionsPrompt = ai.definePrompt({
     name: 'extractQuestionsFromDocument',
     input: { schema: z.object({ documentUri: z.string() }) },
-    output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question that has been grammatically corrected and polished. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")) }) },
+    output: { schema: ExtractQuestionsOutputSchema },
     prompt: `You are an expert AI assistant specializing in parsing medical exam documents. Your task is to meticulously extract all questions from the provided document. Analyze its visual layout across all pages and perform OCR as needed to extract the text.
 
 {{media url=documentUri}}
@@ -57,38 +47,14 @@ Your goal is to identify and list every complete question in the entire document
 `,
 });
 
-const processDocumentFlow = ai.defineFlow(
+const extractQuestionsFlow = ai.defineFlow(
   {
-    name: 'processDocumentFlow',
-    inputSchema: ProcessDocumentInputSchema,
-    outputSchema: ProcessDocumentOutputSchema,
+    name: 'extractQuestionsFlow',
+    inputSchema: ExtractQuestionsInputSchema,
+    outputSchema: ExtractQuestionsOutputSchema,
   },
   async ({ fileDataUri }) => {
-    
-    // Step 1: Extract all questions from the entire document in a single AI call.
     const extractionResult = await extractQuestionsPrompt({ documentUri: fileDataUri });
-    const allQuestions = extractionResult.output?.questions || [];
-
-    const questionsFound = allQuestions.length;
-    
-    if (questionsFound === 0) {
-      console.log("AI could not identify any questions in the document.");
-      return { questionsFound: 0, classifiedQuestions: [] };
-    }
-
-    // Step 2: Concurrently classify all extracted questions.
-    const subjectList = MASTER_SUBJECTS.map(s => s.name);
-    const classificationPromises = allQuestions.map(question =>
-      classifyQuestion({ question, subjectList })
-    );
-    
-    const results = await Promise.all(classificationPromises);
-
-    // Step 3: Filter out any null results or unclassified items.
-    const classifiedQuestions = results.filter((result): result is { question: string, subject: string, topic: string } => 
-        !!result && !!result.subject && !!result.topic
-    );
-    
-    return { questionsFound, classifiedQuestions };
+    return extractionResult.output || { questions: [] };
   }
 );

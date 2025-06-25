@@ -1,23 +1,42 @@
 'use server';
 
-import { processDocument } from '@/ai/flows/process-document';
-import type { ProcessDocumentOutput } from '@/ai/flows/process-document';
+import { extractQuestions } from '@/ai/flows/extract-questions';
+import type { ExtractQuestionsOutput } from '@/ai/flows/extract-questions';
+import { classifyQuestions } from '@/ai/flows/classify-questions';
+import type { ClassifyQuestionsOutput } from '@/ai/flows/classify-questions';
+import type { ClassifiedQuestion } from '@/lib/types';
 
-export async function processDocumentAction(
-  fileDataUri: string
-): Promise<ProcessDocumentOutput> {
+
+function ensureApiKey() {
   if (!process.env.GOOGLE_API_KEY) {
     throw new Error(
       'The GOOGLE_API_KEY is not set. Please add it to your .env file to enable AI features.'
     );
   }
+}
 
+export async function extractQuestionsAction(
+  fileDataUri: string
+): Promise<string[]> {
+  ensureApiKey();
   try {
-    const results = await processDocument({ fileDataUri });
-    return results;
+    const result = await extractQuestions({ fileDataUri });
+    return result.questions;
   } catch (error) {
-    console.error('Error processing document action:', error);
-    // Re-throw the error so the client-side catch block can display the raw message.
+    console.error('Error in extractQuestionsAction:', error);
+    throw new Error(String(error));
+  }
+}
+
+export async function classifyQuestionsAction(
+  questions: string[]
+): Promise<ClassifiedQuestion[]> {
+  ensureApiKey();
+  try {
+    const result = await classifyQuestions({ questions });
+    return result.classifiedQuestions;
+  } catch (error) {
+    console.error('Error in classifyQuestionsAction:', error);
     throw new Error(String(error));
   }
 }
