@@ -2,7 +2,7 @@
 
 import { useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Upload, Loader2 } from "lucide-react"
+import { Upload } from "lucide-react"
 
 interface FileUploaderProps {
   onFileUpload: (file: File) => void;
@@ -23,6 +23,10 @@ export function FileUploader({ onFileUpload, disabled }: FileUploaderProps) {
     fileInputRef.current?.click();
   };
 
+  if (disabled) {
+    return null;
+  }
+
   return (
     <>
       <input
@@ -31,15 +35,10 @@ export function FileUploader({ onFileUpload, disabled }: FileUploaderProps) {
         onChange={handleFileChange}
         className="hidden"
         accept=".pdf"
-        disabled={disabled}
       />
-      <Button onClick={handleButtonClick} disabled={disabled} className="bg-accent hover:bg-accent/90 text-accent-foreground">
-        {disabled ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-        ) : (
-          <Upload className="mr-2 h-4 w-4" />
-        )}
-        <span>{disabled ? "Processing..." : "Upload File"}</span>
+      <Button onClick={handleButtonClick} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+        <Upload className="mr-2 h-4 w-4" />
+        <span>Upload File</span>
       </Button>
     </>
   );
