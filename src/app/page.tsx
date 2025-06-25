@@ -3,9 +3,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Subject, Topic, ClassifiedTopic } from '@/lib/types';
-import { MASTER_SUBJECTS, MOCK_QUESTIONS } from '@/lib/mockData';
-import { classifyQuestionAction } from '@/app/actions';
+import type { Subject, Topic } from '@/lib/types';
+import { MASTER_SUBJECTS } from '@/lib/mockData';
+import { processDocumentAction } from '@/app/actions';
 import { FileUploader } from '@/components/file-uploader';
 import { Dashboard } from '@/components/dashboard';
 import { TopicDetailSheet } from '@/components/topic-detail-sheet';
@@ -85,69 +85,88 @@ export default function Home() {
   const handleFileUpload = async (file: File) => {
     setIsLoading(true);
     setProgress(0);
-    
-    // Flatten master topic list for the AI
-    const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => topic.name)).join(', ');
 
-    const newSubjects: Subject[] = subjects.map(s => ({
-      ...s,
-      topics: s.topics.map(t => ({
-        ...t,
-        files: [...t.files],
-      })),
-      icon: s.icon, // Preserve the icon component during clone
-    }));
-    
-    // Simulate processing questions from the PDF
-    for (let i = 0; i < MOCK_QUESTIONS.length; i++) {
-      const question = MOCK_QUESTIONS[i];
-      try {
-        const result: ClassifiedTopic | null = await classifyQuestionAction(question, masterTopicList);
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
 
-        if (result && result.topic !== "Other") {
-          let topicFound = false;
-          for (const subject of newSubjects) {
-            const topicIndex = subject.topics.findIndex(t => t.name === result.topic);
-            if (topicIndex !== -1) {
-              subject.topics[topicIndex].count += 1;
-              if (!subject.topics[topicIndex].files.includes(file.name)) {
-                subject.topics[topicIndex].files.push(file.name);
-              }
-              topicFound = true;
-              break;
+    reader.onload = async () => {
+        try {
+            const base64String = (reader.result as string)?.split(',')[1];
+            if (!base64String) {
+                throw new Error("Failed to read file.");
             }
-          }
+
+            setProgress(30);
+
+            const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => topic.name)).join(', ');
+            const classifiedTopics = await processDocumentAction(base64String, masterTopicList);
+            
+            setProgress(70);
+
+            if (classifiedTopics.length === 0) {
+                toast({
+                    variant: "destructive",
+                    title: "Analysis Failed",
+                    description: "The AI could not identify any classifiable questions in the document.",
+                });
+                setIsLoading(false);
+                return;
+            }
+
+            const newSubjects: Subject[] = subjects.map(s => ({
+                ...s,
+                topics: s.topics.map(t => ({
+                    ...t,
+                    files: [...t.files],
+                })),
+                icon: s.icon,
+            }));
+
+            for (const result of classifiedTopics) {
+                for (const subject of newSubjects) {
+                    const topicIndex = subject.topics.findIndex(t => t.name === result.topic);
+                    if (topicIndex !== -1) {
+                        subject.topics[topicIndex].count += 1;
+                        if (!subject.topics[topicIndex].files.includes(file.name)) {
+                            subject.topics[topicIndex].files.push(file.name);
+                        }
+                        break; 
+                    }
+                }
+            }
+
+            const subjectsToStore = newSubjects.map(({ icon, ...rest }) => rest);
+            localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
+            setSubjects(newSubjects);
+            
+            setProgress(100);
+
+            toast({
+                title: "Processing Complete",
+                description: `${file.name} has been analyzed and added to the dashboard.`,
+            });
+
+        } catch (error) {
+            console.error("Error processing file:", error);
+            toast({
+                variant: "destructive",
+                title: "Processing Error",
+                description: "An unexpected error occurred while analyzing the document.",
+            });
+        } finally {
+            setIsLoading(false);
         }
-      } catch (error) {
-        console.error(`Error classifying question: ${question}`, error);
+    };
+
+    reader.onerror = (error) => {
+        console.error("FileReader error:", error);
         toast({
-          variant: "destructive",
-          title: "Classification Error",
-          description: "An error occurred while classifying a question.",
+            variant: "destructive",
+            title: "File Read Error",
+            description: "There was an error reading the uploaded file.",
         });
-      }
-      setProgress(((i + 1) / MOCK_QUESTIONS.length) * 100);
-    }
-
-    try {
-      // Create a serializable version of subjects for localStorage
-      const subjectsToStore = newSubjects.map(({ icon, ...rest }) => rest);
-      localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
-      setSubjects(newSubjects);
-      toast({
-        title: "Processing Complete",
-        description: `${file.name} has been analyzed and added to the dashboard.`,
-      });
-    } catch (error) {
-      console.error("Failed to save data to localStorage", error);
-      toast({
-        variant: "destructive",
-        title: "Storage Error",
-        description: "Could not save the analysis results.",
-      });
-    }
-
-    setIsLoading(false);
+        setIsLoading(false);
+    };
   };
 
   const handleTopicSelect = (topic: Topic) => {

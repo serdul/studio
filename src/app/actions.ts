@@ -1,19 +1,19 @@
 'use server';
 
-import { classifyExamQuestions } from '@/ai/flows/classify-exam-questions';
-import type { ClassifyExamQuestionsOutput } from '@/ai/flows/classify-exam-questions';
+import { processDocument } from '@/ai/flows/process-document';
+import type { ProcessDocumentOutput } from '@/ai/flows/process-document';
 
-export async function classifyQuestionAction(
-  question: string,
+export async function processDocumentAction(
+  fileBufferStr: string,
   masterTopicList: string
-): Promise<ClassifyExamQuestionsOutput | null> {
+): Promise<ProcessDocumentOutput> {
   try {
-    const result = await classifyExamQuestions({ question, masterTopicList });
-    return result;
+    const results = await processDocument({ fileBufferStr, masterTopicList });
+    return results;
   } catch (error) {
-    console.error('Error classifying question:', error);
+    console.error('Error processing document:', error);
     // In a real app, you might want to throw a more specific error
     // or return a structured error object.
-    return null;
+    return [];
   }
 }
