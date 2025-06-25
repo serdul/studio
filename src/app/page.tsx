@@ -13,7 +13,6 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from "@/hooks/use-toast";
 import { BookOpenCheck, BarChart3, Bot, Info, Cog, MoreVertical } from 'lucide-react';
 import { UploadedFilesList } from '@/components/uploaded-files-list';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { DashboardSkeleton } from '@/components/dashboard-skeleton';
 import {
