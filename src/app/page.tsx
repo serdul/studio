@@ -9,8 +9,10 @@ import { Dashboard } from '@/components/dashboard';
 import { TopicDetailSheet } from '@/components/topic-detail-sheet';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from "@/hooks/use-toast";
-import { BookOpenCheck, BarChart3, Bot } from 'lucide-react';
+import { BookOpenCheck, BarChart3, Bot, Info } from 'lucide-react';
 import { UploadedFilesList } from '@/components/uploaded-files-list';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
 export default function Home() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -24,12 +26,13 @@ export default function Home() {
       const storedData = localStorage.getItem('medHotspotData');
       if (storedData) {
         const { subjects: storedSubjects } = JSON.parse(storedData);
+        // Deep clone and re-assign icons to avoid mutation and ensure components are valid
         const mergedSubjects = MASTER_SUBJECTS.map(masterSubject => {
             const storedSubject = storedSubjects.find((s: Subject) => s.name === masterSubject.name);
             if (!storedSubject) {
                 return {
                   ...masterSubject,
-                  icon: masterSubject.icon, // Re-assign the icon component
+                  icon: masterSubject.icon, 
                 };
             }
 
@@ -40,7 +43,7 @@ export default function Home() {
 
             return {
                 ...masterSubject,
-                icon: masterSubject.icon, // Re-assign the icon component
+                icon: masterSubject.icon, 
                 topics: mergedTopics,
             };
         });
@@ -114,7 +117,9 @@ export default function Home() {
     }
 
     try {
-      localStorage.setItem('medHotspotData', JSON.stringify({ subjects: newSubjects }));
+      // Create a serializable version of subjects for localStorage
+      const subjectsToStore = newSubjects.map(({ icon, ...rest }) => rest);
+      localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
       setSubjects(newSubjects);
       toast({
         title: "Processing Complete",
@@ -144,7 +149,14 @@ export default function Home() {
             <BookOpenCheck className="h-7 w-7 text-primary" />
             <h1 className="text-2xl font-bold text-foreground">MedHotspot</h1>
           </div>
-          <FileUploader onFileUpload={handleFileUpload} disabled={isLoading} />
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+              <Link href="/about">
+                <Info className="mr-2" /> How it Works
+              </Link>
+            </Button>
+            <FileUploader onFileUpload={handleFileUpload} disabled={isLoading} />
+          </div>
         </div>
       </header>
 
