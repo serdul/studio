@@ -1,36 +1,87 @@
 'use server';
 /**
  * @fileOverview A flow for classifying medical questions into subjects and topics.
+ * This file implements a robust, concurrent approach to question classification.
  */
 
 import {ai} from '@/ai/genkit';
 import {
-  ClassifyQuestionsInputSchema,
   type ClassifyQuestionsInput,
-  ClassifyQuestionsOutputSchema,
-  type ClassifyQuestionsOutput,
+  ClassifiedQuestionSchema,
+  type ClassifiedQuestion,
 } from '@/ai/schemas';
 import {z} from 'zod';
 
+// This is the main function exported to the rest of the application.
+// It orchestrates the classification of multiple questions concurrently.
 export async function classifyQuestions(
   input: ClassifyQuestionsInput
-): Promise<ClassifyQuestionsOutput> {
-  const anwser = await classifyQuestionsFlow(input);
-  // Due to a bug in Genkit we have to manually validate the output.
-  // TODO: remove this once the bug is fixed.
-  for (const q of anwser.classifiedQuestions) {
-    if (!q.rationale) {
-      q.rationale = 'The AI did not provide a rationale for this question.';
+): Promise<{classifiedQuestions: ClassifiedQuestion[]}> {
+  const promises = input.questions.map(question =>
+    classifyQuestionFlow({question})
+  );
+
+  const results = await Promise.allSettled(promises);
+
+  const classifiedQuestions: ClassifiedQuestion[] = [];
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled' && result.value) {
+      // Combine the original question with the AI's classification.
+      const fullQuestionData: ClassifiedQuestion = {
+        question: input.questions[index],
+        ...result.value,
+      };
+
+      // Provide a default rationale if the AI omits it.
+      if (!fullQuestionData.rationale) {
+        fullQuestionData.rationale =
+          'The AI did not provide a rationale for this question.';
+      }
+      
+      classifiedQuestions.push(fullQuestionData);
+    } else if (result.status === 'rejected') {
+      console.error(
+        `Failed to classify question: "${input.questions[index]}"`,
+        result.reason
+      );
+      // We are choosing to skip failed questions instead of crashing the app.
     }
-  }
-  return anwser;
+  });
+
+  return {classifiedQuestions};
 }
 
-const classifyQuestionsPrompt = ai.definePrompt({
-  name: 'classifyQuestionsPrompt',
-  input: {schema: ClassifyQuestionsInputSchema},
-  output: {schema: ClassifyQuestionsOutputSchema},
-  prompt: `You are an expert medical educator and AI assistant. Your task is to analyze a list of multiple-choice questions (MCQs) and classify each one into a major medical subject and a specific, granular topic.
+// Define a schema for just the parts the AI will generate to save tokens.
+const AIClassificationResultSchema = ClassifiedQuestionSchema.omit({ question: true });
+type AIClassificationResult = z.infer<typeof AIClassificationResultSchema>;
+
+
+// This flow is for classifying a SINGLE question.
+const classifyQuestionFlow = ai.defineFlow(
+  {
+    name: 'classifyQuestionFlow',
+    inputSchema: z.object({question: z.string()}),
+    outputSchema: AIClassificationResultSchema,
+  },
+  async ({question}) => {
+    const {output} = await classifyQuestionPrompt({question});
+
+    if (!output) {
+      throw new Error(
+        'The AI failed to generate a classification for the question.'
+      );
+    }
+    return output;
+  }
+);
+
+
+// This prompt is for a SINGLE question.
+const classifyQuestionPrompt = ai.definePrompt({
+  name: 'classifyQuestionPrompt',
+  input: {schema: z.object({question: z.string()})},
+  output: {schema: AIClassificationResultSchema},
+  prompt: `You are an expert medical educator and AI assistant. Your task is to analyze a single multiple-choice question (MCQ) and classify it into a major medical subject and a specific, granular topic.
 
 **Major Subject List (You MUST use one of these):**
 - Cardiology
@@ -49,34 +100,13 @@ const classifyQuestionsPrompt = ai.definePrompt({
 
 **Instructions:**
 
-1.  **Analyze Each Question:** For each question in the input array, perform the following steps.
-2.  **Assign a Subject:** Assign one of the major subjects from the list above. Choose 'Miscellaneous' only if no other subject is a clear fit.
-3.  **Define a Specific Topic:** Identify the most granular, specific topic being tested. For example, for a question about heart rhythms, 'Atrial Fibrillation' is better than 'Arrhythmias'. For a question about IBD, 'Crohn's Disease' is better than 'Gastroenterology'.
-4.  **Provide Rationale:** Write a brief, one-sentence rationale explaining *why* you chose that subject and topic. This is especially important for complex questions or when you need to improvise a topic not explicitly mentioned.
-5.  **Maintain Original Question:** The 'question' field in your output object MUST be the exact, unmodified text of the original question.
-6.  **Output Format:** Your final output MUST be a single, valid JSON object that strictly adheres to the provided output schema. It must contain a single key, "classifiedQuestions", which is an array of objects.
+1.  **Analyze the Question:** Read the provided question carefully.
+2.  **Assign a Subject:** Assign ONE of the major subjects from the list above. Choose 'Miscellaneous' only if no other subject is a clear fit.
+3.  **Define a Specific Topic:** Identify the most granular, specific topic being tested. For example, for a heart rhythm question, 'Atrial Fibrillation' is better than 'Arrhythmias'. For an IBD question, 'Crohn's Disease' is better than 'Gastroenterology'.
+4.  **Provide Rationale (Optional but Recommended):** Write a brief, one-sentence rationale explaining *why* you chose that subject and topic.
+5.  **Output Format:** Your final output MUST be a single, valid JSON object that strictly adheres to the output schema. It should only contain 'subject', 'topic', and optional 'rationale' fields. DO NOT include the original question text.
 
-**Input Questions:**
-\`\`\`json
-{{{jsonStringify questions}}}
-\`\`\`
+**Input Question:**
+"{{{question}}}"
 `,
 });
-
-const classifyQuestionsFlow = ai.defineFlow(
-  {
-    name: 'classifyQuestionsFlow',
-    inputSchema: ClassifyQuestionsInputSchema,
-    outputSchema: ClassifyQuestionsOutputSchema,
-  },
-  async ({questions}) => {
-    const {output} = await classifyQuestionsPrompt({questions});
-
-    if (!output) {
-      throw new Error(
-        'The AI failed to generate a classification for the questions.'
-      );
-    }
-    return output;
-  }
-);
