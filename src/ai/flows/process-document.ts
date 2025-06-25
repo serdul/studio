@@ -37,7 +37,7 @@ Each item in the output array should be a single string containing one full, com
 
 **CRUCIAL INSTRUCTIONS:**
 1.  **IGNORE ANSWERS:** You MUST NOT include any text that is an answer, a rationale, or a principle of management. Only extract the question content itself. For example, if you see "1. Full blood count" following a question about investigations, ignore it.
-2.  **IGNORE METADATA:** Ignore all non-question text like page headers, footers, page numbers, or compiler names (e.g., "KDU SEQ Paediatrics", "Intake 27 Proper 27 August 2014").
+2.  **IGNORE METADATA:** Ignore all non-question text like page headers, footers, page numbers, or compiler names. For example, you must ignore text like "GENERAL SIR JOHN KOTELAWALA DEFENCE UNIVERSITY", "SURGERY - MCQ", "Duration 02 Hours", "Duplicate copy prepared by Intake 31 MMS", "KDU SEQ Paediatrics", or "Intake 27 Proper 27 August 2014".
 
 Document Text:
 {{{documentText}}}
