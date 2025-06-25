@@ -28,13 +28,16 @@ export async function processDocument(
 const extractQuestionsPrompt = ai.definePrompt({
     name: 'extractQuestionsFromDocument',
     input: { schema: z.object({ documentText: z.string() }) },
-    output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question. For MCQs, include the stem and all options. For SEQs, include the full question text. Exclude any provided answers.")) }) },
+    output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")) }) },
     prompt: `You are an expert at parsing text from medical exam documents. Your task is to extract all questions, regardless of their format (e.g., multiple-choice, short-essay).
-Each item in the output array should be a single string containing the full question.
-- For multiple-choice questions, this includes the stem and all of its associated options (e.g., a, b, c, d, e).
-- For short-essay questions, this includes the full text of the question.
-It is very important that you **ignore any answers** that may be included with the questions in the document. Only extract the question content itself.
-Also, ignore any text that is not part of a question, such as page headers, footers, page numbers, or compiler names.
+Each item in the output array should be a single string containing one full, complete question.
+
+- **For Multiple-Choice Questions (MCQs):** A complete question includes the question stem and all of its associated options (e.g., a, b, c, d, e).
+- **For Short-Essay Questions (SEQs):** If there is a main clinical scenario followed by sub-questions (like 1.1, 1.2), combine the main scenario text with *each* sub-question to form a complete, standalone question. This ensures each question has full context for analysis.
+
+**CRUCIAL INSTRUCTIONS:**
+1.  **IGNORE ANSWERS:** You MUST NOT include any text that is an answer, a rationale, or a principle of management. Only extract the question content itself. For example, if you see "1. Full blood count" following a question about investigations, ignore it.
+2.  **IGNORE METADATA:** Ignore all non-question text like page headers, footers, page numbers, or compiler names (e.g., "KDU SEQ Paediatrics", "Intake 27 Proper 27 August 2014").
 
 Document Text:
 {{{documentText}}}
