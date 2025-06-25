@@ -188,7 +188,8 @@ export default function Home() {
 
               const newQuestion: Question = {
                   text: result.question,
-                  sourceFile: fileName
+                  sourceFile: fileName,
+                  rationale: result.rationale,
               };
 
               if (topicIndex !== -1) {

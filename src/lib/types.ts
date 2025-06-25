@@ -1,6 +1,7 @@
 export interface Question {
   text: string;
   sourceFile: string;
+  rationale?: string;
 }
 
 export interface Topic {
@@ -33,4 +34,5 @@ export interface ClassifiedQuestion {
   question: string;
   subject: string;
   topic: string;
+  rationale: string;
 }

@@ -9,7 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
-import { FileText, MessageSquareQuote } from "lucide-react"
+import { FileText, MessageSquareQuote, Lightbulb } from "lucide-react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 interface TopicDetailSheetProps {
@@ -45,10 +45,21 @@ export function TopicDetailSheet({ topic, open, onOpenChange }: TopicDetailSheet
               {topic.questions.map((question, index) => (
                 <AccordionItem value={`item-${index}`} key={index}>
                   <AccordionTrigger>Question #{index + 1} (from {question.sourceFile})</AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="space-y-4">
                     <p className="text-sm text-muted-foreground whitespace-pre-wrap p-2 bg-secondary/50 rounded-md">
                       {question.text}
                     </p>
+                    {question.rationale && (
+                        <div className="p-3 rounded-md border border-amber-200 bg-amber-50 text-amber-900">
+                           <p className="font-semibold flex items-center gap-2 mb-2">
+                                <Lightbulb className="h-5 w-5 text-amber-500"/>
+                                AI Rationale
+                           </p>
+                           <p className="text-sm italic">
+                            "{question.rationale}"
+                           </p>
+                        </div>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               ))}
