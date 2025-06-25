@@ -9,7 +9,6 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import { classifyExamQuestions } from './classify-exam-questions';
 import type { ClassifyExamQuestionsOutput } from './classify-exam-questions';
-import pdf from 'pdf-parse';
 
 const ProcessDocumentInputSchema = z.object({
   fileBufferStr: z.string().describe('The PDF file content as a base64 encoded string.'),
@@ -38,6 +37,7 @@ const processDocumentFlow = ai.defineFlow(
   },
   async ({ fileBufferStr, masterTopicList }) => {
     try {
+      const pdf = (await import('pdf-parse')).default;
       const fileBuffer = Buffer.from(fileBufferStr, 'base64');
       const data = await pdf(fileBuffer);
 
