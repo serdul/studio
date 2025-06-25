@@ -145,14 +145,14 @@ export default function Home() {
                 description: `${file.name} has been analyzed and added to the dashboard.`,
             });
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error processing file:", error);
-            const errorMessage = String(error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
             setProgressLog(prev => [...prev, { message: errorMessage, status: 'error' }]);
             toast({
                 variant: "destructive",
                 title: "An Error Occurred During Analysis",
-                description: errorMessage,
+                description: errorMessage || "An unknown error occurred. Please check the console for details.",
             });
         } finally {
             if (!isCancelledRef.current) {
