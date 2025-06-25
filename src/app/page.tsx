@@ -3,7 +3,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Subject, Topic, Question, ProgressLogEntry, ClassifiedQuestion } from '@/lib/types';
+import type { Subject, Topic, Question } from '@/lib/types';
+import type { ClassifiedQuestion } from '@/ai/schemas';
 import { MASTER_SUBJECTS } from '@/lib/mockData';
 import { extractQuestionsAction, classifyQuestionsAction } from '@/app/actions';
 import { FileUploader } from '@/components/file-uploader';
@@ -21,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import type { ProgressLogEntry } from '@/lib/types';
 
 export default function Home() {
   const [subjects, setSubjects] = useState<Subject[]>([]);

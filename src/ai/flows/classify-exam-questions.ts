@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -12,16 +13,24 @@ import {
   ClassifyQuestionInputSchema,
   type ClassifyQuestionInput,
   ClassifiedQuestionSchema,
-  type ClassifiedQuestion,
 } from '@/ai/schemas';
 
 export async function classifyQuestion(
   input: ClassifyQuestionInput
 ): Promise<ClassifiedQuestion> {
-  return classifyQuestionFlow(input);
+  // Note: We are intentionally not returning the full ClassifiedQuestion schema from the flow
+  // because the `question` text is already available in the input. We'll add it back in the
+  // flow's return statement to avoid unnecessary data transfer from the AI model.
+  const { subject, topic, rationale } = await classifyQuestionFlow(input);
+  return {
+    question: input.question,
+    subject,
+    topic,
+    rationale,
+  };
 }
 
-const prompt = ai.definePrompt({
+const classifyQuestionPrompt = ai.definePrompt({
   name: 'classifyQuestionPrompt',
   input: {schema: ClassifyQuestionInputSchema},
   output: {schema: z.object({
@@ -55,12 +64,13 @@ const classifyQuestionFlow = ai.defineFlow(
   {
     name: 'classifyQuestionFlow',
     inputSchema: ClassifyQuestionInputSchema,
-    outputSchema: ClassifiedQuestionSchema,
+    // Note: The flow's output schema is different from the prompt's output schema
+    // because the prompt only generates the core fields, and we add the question back in the flow.
+    outputSchema: ClassifiedQuestionSchema.omit({ question: true }),
   },
   async input => {
-    const {output} = await prompt(input);
+    const {output} = await classifyQuestionPrompt(input);
     return {
-      question: input.question,
       subject: output?.subject || '',
       topic: output?.topic || '',
       rationale: output?.rationale || 'No rationale provided by AI.',

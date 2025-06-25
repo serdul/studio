@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow for classifying a batch of questions concurrently.
@@ -12,7 +13,7 @@ import {
 } from '@/ai/schemas';
 import { classifyQuestion } from './classify-exam-questions';
 import { MASTER_SUBJECTS } from '@/lib/mockData';
-import type { ClassifiedQuestion } from '@/lib/types';
+import type { ClassifiedQuestion } from '@/ai/schemas';
 
 
 export async function classifyQuestions(
