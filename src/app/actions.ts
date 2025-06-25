@@ -4,11 +4,11 @@ import { processDocument } from '@/ai/flows/process-document';
 import type { ProcessDocumentOutput } from '@/ai/flows/process-document';
 
 export async function processDocumentAction(
-  fileBufferStr: string,
+  fileDataUri: string,
   masterTopicList: string
 ): Promise<ProcessDocumentOutput> {
   try {
-    const results = await processDocument({ fileBufferStr, masterTopicList });
+    const results = await processDocument({ fileDataUri, masterTopicList });
     return results;
   } catch (error) {
     console.error('Error processing document:', error);

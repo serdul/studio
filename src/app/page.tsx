@@ -91,15 +91,15 @@ export default function Home() {
 
     reader.onload = async () => {
         try {
-            const base64String = (reader.result as string)?.split(',')[1];
-            if (!base64String) {
+            const fileDataUri = reader.result as string;
+            if (!fileDataUri) {
                 throw new Error("Failed to read file.");
             }
 
             setProgress(30);
 
             const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => topic.name)).join(', ');
-            const classifiedTopics = await processDocumentAction(base64String, masterTopicList);
+            const classifiedTopics = await processDocumentAction(fileDataUri, masterTopicList);
             
             setProgress(70);
 

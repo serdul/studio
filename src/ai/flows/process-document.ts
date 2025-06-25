@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview A flow for processing an entire exam document.
- * It uses an AI prompt to extract questions from the document text,
+ * It uses a multi-modal AI prompt to extract questions from the document,
  * classifies each question, and returns the aggregated results.
  */
 
@@ -11,7 +11,7 @@ import { classifyExamQuestions } from './classify-exam-questions';
 import type { ClassifyExamQuestionsOutput } from './classify-exam-questions';
 
 const ProcessDocumentInputSchema = z.object({
-  fileBufferStr: z.string().describe('The PDF file content as a base64 encoded string.'),
+  fileDataUri: z.string().describe("A file (PDF or image) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   masterTopicList: z.string().describe('A list of predefined topics.'),
 });
 export type ProcessDocumentInput = z.infer<typeof ProcessDocumentInputSchema>;
@@ -27,9 +27,13 @@ export async function processDocument(
 
 const extractQuestionsPrompt = ai.definePrompt({
     name: 'extractQuestionsFromDocument',
-    input: { schema: z.object({ documentText: z.string() }) },
+    input: { schema: z.object({ documentUri: z.string() }) },
     output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")) }) },
-    prompt: `You are an expert at parsing text from medical exam documents. Your task is to extract all questions, regardless of their format (e.g., multiple-choice, short-essay).
+    prompt: `You are an expert at parsing medical exam documents. Your task is to extract all questions from the provided document, regardless of their format (e.g., multiple-choice, short-essay).
+The document is provided as media. You will perform OCR if necessary.
+
+{{media url=documentUri}}
+
 Each item in the output array should be a single string containing one full, complete question.
 
 - **For Multiple-Choice Questions (MCQs):** A complete question includes the question stem and all of its associated options (e.g., a, b, c, d, e).
@@ -38,9 +42,6 @@ Each item in the output array should be a single string containing one full, com
 **CRUCIAL INSTRUCTIONS:**
 1.  **IGNORE ANSWERS:** You MUST NOT include any text that is an answer, a rationale, or a principle of management. Only extract the question content itself. For example, if you see "1. Full blood count" following a question about investigations, ignore it.
 2.  **IGNORE METADATA:** Ignore all non-question text like page headers, footers, page numbers, or compiler names. For example, you must ignore text like "GENERAL SIR JOHN KOTELAWALA DEFENCE UNIVERSITY", "SURGERY - MCQ", "Duration 02 Hours", "Duplicate copy prepared by Intake 31 MMS", "KDU SEQ Paediatrics", or "Intake 27 Proper 27 August 2014".
-
-Document Text:
-{{{documentText}}}
 `,
 });
 
@@ -50,14 +51,9 @@ const processDocumentFlow = ai.defineFlow(
     inputSchema: ProcessDocumentInputSchema,
     outputSchema: ProcessDocumentOutputSchema,
   },
-  async ({ fileBufferStr, masterTopicList }) => {
+  async ({ fileDataUri, masterTopicList }) => {
     try {
-      const pdf = (await import('pdf-parse')).default;
-      const fileBuffer = Buffer.from(fileBufferStr, 'base64');
-      const data = await pdf(fileBuffer);
-      const text = data.text;
-
-      const extractionResult = await extractQuestionsPrompt({ documentText: text });
+      const extractionResult = await extractQuestionsPrompt({ documentUri: fileDataUri });
       const questions = extractionResult.output?.questions || [];
       
       if (questions.length === 0) {
