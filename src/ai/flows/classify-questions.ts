@@ -4,25 +4,16 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-import { classifyQuestion, ClassifyQuestionOutput } from './classify-exam-questions';
+import {
+  ClassifyQuestionsInputSchema,
+  type ClassifyQuestionsInput,
+  ClassifyQuestionsOutputSchema,
+  type ClassifyQuestionsOutput,
+} from '@/ai/schemas';
+import { classifyQuestion } from './classify-exam-questions';
 import { MASTER_SUBJECTS } from '@/lib/mockData';
 import type { ClassifiedQuestion } from '@/lib/types';
 
-
-const ClassifyQuestionsInputSchema = z.object({
-  questions: z.array(z.string()),
-});
-export type ClassifyQuestionsInput = z.infer<typeof ClassifyQuestionsInputSchema>;
-
-const ClassifyQuestionsOutputSchema = z.object({
-  classifiedQuestions: z.array(z.object({
-    question: z.string(),
-    subject: z.string(),
-    topic: z.string(),
-  })),
-});
-export type ClassifyQuestionsOutput = z.infer<typeof ClassifyQuestionsOutputSchema>;
 
 export async function classifyQuestions(
   input: ClassifyQuestionsInput
@@ -51,7 +42,7 @@ const classifyQuestionsFlow = ai.defineFlow(
     const results = await Promise.all(classificationPromises);
 
     // Filter out any null results or unclassified items.
-    const classifiedQuestions: ClassifiedQuestion[] = results.filter((result): result is ClassifyQuestionOutput => 
+    const classifiedQuestions: ClassifiedQuestion[] = results.filter((result): result is ClassifiedQuestion => 
         !!result && !!result.subject && !!result.topic
     );
     

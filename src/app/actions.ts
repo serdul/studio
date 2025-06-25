@@ -1,9 +1,7 @@
 'use server';
 
 import { extractQuestions } from '@/ai/flows/extract-questions';
-import type { ExtractQuestionsOutput } from '@/ai/flows/extract-questions';
 import { classifyQuestions } from '@/ai/flows/classify-questions';
-import type { ClassifyQuestionsOutput } from '@/ai/flows/classify-questions';
 import type { ClassifiedQuestion } from '@/lib/types';
 
 

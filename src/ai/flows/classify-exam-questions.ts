@@ -4,29 +4,20 @@
  * @fileOverview A flow for classifying exam questions into subjects and dynamically identifying topics.
  *
  * - classifyQuestion - A function that handles the classification of an exam question.
- * - ClassifyQuestionInput - The input type for the classifyQuestion function.
- * - ClassifyQuestionOutput - The return type for the classifyQuestion function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-
-const ClassifyQuestionInputSchema = z.object({
-  question: z.string().describe('The question to classify.'),
-  subjectList: z.array(z.string()).describe('A list of predefined medical subjects to classify against.'),
-});
-export type ClassifyQuestionInput = z.infer<typeof ClassifyQuestionInputSchema>;
-
-const ClassifyQuestionOutputSchema = z.object({
-  question: z.string().describe('The original question text.'),
-  subject: z.string().describe('The classified subject for the question.'),
-  topic: z.string().describe('The dynamically identified, generalized topic for the question.'),
-});
-export type ClassifyQuestionOutput = z.infer<typeof ClassifyQuestionOutputSchema>;
+import type { ClassifiedQuestion } from '@/lib/types';
+import {
+  ClassifyQuestionInputSchema,
+  type ClassifyQuestionInput,
+  ClassifiedQuestionSchema,
+} from '@/ai/schemas';
 
 export async function classifyQuestion(
   input: ClassifyQuestionInput
-): Promise<ClassifyQuestionOutput> {
+): Promise<ClassifiedQuestion> {
   return classifyQuestionFlow(input);
 }
 
@@ -37,22 +28,23 @@ const prompt = ai.definePrompt({
     subject: z.string().describe('The classified subject for the question. Must be one of the provided subjects.'),
     topic: z.string().describe('The dynamically identified, generalized topic for the question.'),
   })},
-  prompt: `You are an expert medical exam question classifier. Your task is to analyze a given medical question and classify it into a subject and a core topic.
-
-**Instructions:**
-
-1.  **Classify the Subject:** First, determine which of the following medical subjects the question belongs to. The subject MUST be one of the following:
-    {{#each subjectList}}
-    - {{{this}}}
-    {{/each}}
-
-2.  **Identify the Core Topic:** Second, identify the primary medical topic of the question. This topic should be a general, high-level concept.
-    *   **Crucial Rule:** Do NOT create overly specific topics. Consolidate concepts. For example, if a question is about the 'management of inflammatory bowel disease' or 'pathology of inflammatory bowel disease', the topic should simply be 'Inflammatory Bowel Disease'. Similarly, 'treatment of myocardial infarction' should be 'Myocardial Infarction'.
-
-3. **Output:** Return the single most appropriate subject and the generated core topic. If you cannot confidently classify the question, return an empty string for both the subject and topic fields.
+  prompt: `You are an expert medical exam question classifier. Your task is to analyze a given medical question and assign it to a single subject and a single, generalized topic.
 
 **Input Question:**
 {{{question}}}
+
+**Analysis and Output Rules:**
+
+1.  **Subject Classification:** You MUST classify the question into one, and only one, of the following subjects:
+    {{#each subjectList}}
+    - {{{this}}}
+    {{/each}}
+    Choose the single best fit.
+
+2.  **Topic Generalization:** You MUST identify the core medical topic. Your topic MUST be a general, high-level concept.
+    *   **Crucial Rule:** Consolidate specific variations into a single, core topic. For example, questions about 'management of inflammatory bowel disease' or 'pathology of inflammatory bowel disease' must both be assigned the topic 'Inflammatory Bowel Disease'. Similarly, 'treatment of myocardial infarction' must be assigned the topic 'Myocardial Infarction'. Do NOT create specific topics like 'management of...' or 'pathology of...'.
+
+3.  **Output Format:** Your response MUST be a JSON object with two keys: "subject" and "topic".
   `,
 });
 
@@ -60,7 +52,7 @@ const classifyQuestionFlow = ai.defineFlow(
   {
     name: 'classifyQuestionFlow',
     inputSchema: ClassifyQuestionInputSchema,
-    outputSchema: ClassifyQuestionOutputSchema,
+    outputSchema: ClassifiedQuestionSchema,
   },
   async input => {
     const {output} = await prompt(input);
