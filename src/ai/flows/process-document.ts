@@ -28,15 +28,17 @@ export async function processDocument(
 const extractQuestionsPrompt = ai.definePrompt({
     name: 'extractQuestionsFromDocument',
     input: { schema: z.object({ documentText: z.string() }) },
-    output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete multiple-choice question, including the stem and all options.")) }) },
-    prompt: `You are an expert at parsing text from medical exam documents. 
-    From the document text provided below, extract all the multiple-choice questions.
-    Each item in the output array should be a single string containing the full question stem and all of its associated options (e.g., a, b, c, d, e).
-    Ignore any text that is not part of a question, such as page headers, footers, page numbers, or compiler names.
+    output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question. For MCQs, include the stem and all options. For SEQs, include the full question text. Exclude any provided answers.")) }) },
+    prompt: `You are an expert at parsing text from medical exam documents. Your task is to extract all questions, regardless of their format (e.g., multiple-choice, short-essay).
+Each item in the output array should be a single string containing the full question.
+- For multiple-choice questions, this includes the stem and all of its associated options (e.g., a, b, c, d, e).
+- For short-essay questions, this includes the full text of the question.
+It is very important that you **ignore any answers** that may be included with the questions in the document. Only extract the question content itself.
+Also, ignore any text that is not part of a question, such as page headers, footers, page numbers, or compiler names.
 
-    Document Text:
-    {{{documentText}}}
-    `,
+Document Text:
+{{{documentText}}}
+`,
 });
 
 const processDocumentFlow = ai.defineFlow(
