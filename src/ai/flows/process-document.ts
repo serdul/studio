@@ -25,9 +25,9 @@ export async function processDocument(
   return processDocumentFlow(input);
 }
 
-// A simple regex to split text into questions.
-// It looks for a number followed by a period and a space.
-const questionRegex = /\d+\.\s+([\s\S]*?)(?=\n\d+\.\s+|$)/g;
+// A regex to split text into questions.
+// It looks for a number followed by a period or parenthesis and a space.
+const questionRegex = /\d+[.)]\s+([\s\S]*?)(?=\n\d+[.)]\s+|$)/g;
 
 const processDocumentFlow = ai.defineFlow(
   {
@@ -53,7 +53,7 @@ const processDocumentFlow = ai.defineFlow(
         questions.push(...text.split('\n').filter(line => line.trim().length > 50));
       }
 
-      if (questions.length === t) {
+      if (questions.length === 0) {
         console.log("No questions found in the document.");
         return [];
       }
