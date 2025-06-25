@@ -7,7 +7,8 @@ const options: GenkitOptions = {plugins};
 
 if (process.env.GOOGLE_API_KEY) {
   plugins.push(googleAI());
-  options.model = 'googleai/gemini-2.0-flash';
+  // Use a vision-capable model for document analysis.
+  options.model = 'googleai/gemini-1.5-flash-latest';
 } else {
   console.warn(`
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

@@ -7,6 +7,12 @@ export async function processDocumentAction(
   fileDataUri: string,
   masterTopicList: string
 ): Promise<ProcessDocumentOutput> {
+  if (!process.env.GOOGLE_API_KEY) {
+    throw new Error(
+      'The GOOGLE_API_KEY is not set. Please add it to your .env file to enable AI features.'
+    );
+  }
+
   try {
     const results = await processDocument({ fileDataUri, masterTopicList });
     return results;
