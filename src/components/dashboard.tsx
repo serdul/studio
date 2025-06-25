@@ -44,7 +44,7 @@ export function Dashboard({ subjects, onTopicSelect }: DashboardProps) {
                         onClick={() => onTopicSelect(topic)}
                       >
                         <span className="flex-1 pr-2">{topic.name}</span>
-                        <Badge variant={topic.count > 2 ? "default" : "secondary"} className="shrink-0 bg-primary/20 text-primary hover:bg-primary/30">
+                        <Badge variant={topic.count > 2 ? "default" : "secondary"} className="shrink-0">
                           {topic.count}
                         </Badge>
                       </Button>

@@ -34,8 +34,8 @@ export function TopicDetailSheet({ topic, open, onOpenChange }: TopicDetailSheet
           <h3 className="font-semibold text-foreground">Source Documents</h3>
           {topic.files.length > 0 ? (
             <ul className="space-y-2">
-              {topic.files.map((file, index) => (
-                <li key={index} className="flex items-center gap-3 rounded-md border p-3">
+              {topic.files.map((file) => (
+                <li key={file} className="flex items-center gap-3 rounded-md border p-3">
                   <FileText className="h-5 w-5 text-muted-foreground" />
                   <span className="text-sm font-medium">{file}</span>
                 </li>
