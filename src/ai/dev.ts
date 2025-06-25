@@ -1,5 +1,6 @@
-import { config } from 'dotenv';
+'use server';
+import {config} from 'dotenv';
 config();
 
-import '@/ai/flows/extract-questions.ts';
-import '@/ai/flows/explain-question-flow.ts';
+import '@/ai/flows/classify-exam-questions';
+import '@/ai/flows/explain-question-flow';

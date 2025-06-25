@@ -3,7 +3,8 @@
 
 import { extractQuestions } from '@/ai/flows/extract-questions';
 import { explainQuestion } from '@/ai/flows/explain-question-flow';
-import type { ExplainQuestionOutput } from '@/ai/schemas';
+import { classifyQuestions } from '@/ai/flows/classify-exam-questions';
+import type { ExplainQuestionOutput, ClassifiedQuestion } from '@/ai/schemas';
 
 
 function ensureApiKey() {
@@ -14,15 +15,23 @@ function ensureApiKey() {
   }
 }
 
-export async function extractQuestionsAction(
+export async function processExamFileAction(
   fileDataUri: string
-): Promise<string[]> {
+): Promise<ClassifiedQuestion[]> {
   ensureApiKey();
   try {
-    const result = await extractQuestions({ fileDataUri });
-    return result.questions;
+    // Step 1: Extract questions from the document
+    const extractionResult = await extractQuestions({ fileDataUri });
+    if (!extractionResult.questions || extractionResult.questions.length === 0) {
+      return [];
+    }
+
+    // Step 2: Classify the extracted questions
+    const classificationResult = await classifyQuestions({ questions: extractionResult.questions });
+    return classificationResult.classifiedQuestions;
+    
   } catch (error) {
-    console.error('Error in extractQuestionsAction:', error);
+    console.error('Error in processExamFileAction:', error);
     throw new Error(String(error));
   }
 }

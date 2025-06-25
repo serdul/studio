@@ -30,3 +30,23 @@ export const ExplainQuestionOutputSchema = z.object({
   citations: z.array(z.string()).describe('An array of credible medical sources to support the explanation.'),
 });
 export type ExplainQuestionOutput = z.infer<typeof ExplainQuestionOutputSchema>;
+
+
+// From classify-exam-questions.ts
+export const ClassifiedQuestionSchema = z.object({
+  question: z.string().describe("The original, unmodified text of the multiple-choice question."),
+  subject: z.string().describe("The major medical subject the question belongs to (e.g., 'Cardiology')."),
+  topic: z.string().describe("The specific, granular topic being tested (e.g., 'Atrial Fibrillation')."),
+  rationale: z.string().optional().describe("A brief explanation for the chosen classification."),
+});
+export type ClassifiedQuestion = z.infer<typeof ClassifiedQuestionSchema>;
+
+export const ClassifyQuestionsInputSchema = z.object({
+  questions: z.array(z.string()).describe("An array of full question texts to be classified."),
+});
+export type ClassifyQuestionsInput = z.infer<typeof ClassifyQuestionsInputSchema>;
+
+export const ClassifyQuestionsOutputSchema = z.object({
+  classifiedQuestions: z.array(ClassifiedQuestionSchema),
+});
+export type ClassifyQuestionsOutput = z.infer<typeof ClassifyQuestionsOutputSchema>;

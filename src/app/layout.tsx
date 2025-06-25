@@ -4,8 +4,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'MCQ Explainer',
-  description: 'AI-Powered Medical Quiz Explanations',
+  title: 'MedHotspot',
+  description: 'AI-Powered Medical Exam Analysis and Personalized Quizzes',
 };
 
 export default function RootLayout({
