@@ -178,47 +178,46 @@ export default function Home() {
   };
 
   const updateStateWithNewData = (classifiedQuestions: ClassifiedQuestion[], fileName: string) => {
-      // Use a reducer to build the new state immutably, preventing mutation bugs.
-      const updatedSubjects = classifiedQuestions.reduce((currentSubjects, result) => {
-        const subjectIndex = currentSubjects.findIndex(s => s.name === result.subject);
-        if (subjectIndex === -1) return currentSubjects; // Subject not found, skip.
+    setSubjects(currentSubjects => {
+        // Create a deep clone of the current state to safely mutate.
+        const newSubjects = currentSubjects.map(s => ({
+            ...s,
+            topics: s.topics.map(t => ({
+                ...t,
+                questions: [...t.questions]
+            }))
+        }));
 
-        // Create a mutable copy for this iteration
-        const newSubjects = [...currentSubjects];
-        const subjectToUpdate = { ...newSubjects[subjectIndex] };
-        
-        const topicNameLower = result.topic.trim().toLowerCase();
-        const topicIndex = subjectToUpdate.topics.findIndex(t => t.name.trim().toLowerCase() === topicNameLower);
+        classifiedQuestions.forEach(result => {
+            const subjectToUpdate = newSubjects.find(s => s.name === result.subject);
+            if (!subjectToUpdate) return;
 
-        const newQuestion: Question = {
-            text: result.question,
-            sourceFile: fileName,
-            rationale: result.rationale,
-        };
+            const topicNameLower = result.topic.trim().toLowerCase();
+            const topicToUpdate = subjectToUpdate.topics.find(t => t.name.trim().toLowerCase() === topicNameLower);
 
-        if (topicIndex !== -1) {
-            // Topic exists, add question to it
-            const topicToUpdate = { ...subjectToUpdate.topics[topicIndex] };
-            topicToUpdate.questions = [...topicToUpdate.questions, newQuestion];
-            subjectToUpdate.topics = [...subjectToUpdate.topics];
-            subjectToUpdate.topics[topicIndex] = topicToUpdate;
-        } else {
-            // Topic is new, create it
-            const newTopic: Topic = {
-                name: result.topic.trim(),
-                questions: [newQuestion],
+            const newQuestion: Question = {
+                text: result.question,
+                sourceFile: fileName,
+                rationale: result.rationale,
             };
-            subjectToUpdate.topics = [...subjectToUpdate.topics, newTopic];
-        }
 
-        newSubjects[subjectIndex] = subjectToUpdate;
+            if (topicToUpdate) {
+                // Topic exists, add question to it
+                topicToUpdate.questions.push(newQuestion);
+            } else {
+                // Topic is new, create it
+                const newTopic: Topic = {
+                    name: result.topic.trim(),
+                    questions: [newQuestion],
+                };
+                subjectToUpdate.topics.push(newTopic);
+            }
+        });
+
+        const subjectsToStore = newSubjects.map(({ icon, ...rest }) => rest);
+        localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
         return newSubjects;
-
-      }, subjects);
-
-      const subjectsToStore = updatedSubjects.map(({ icon, ...rest }) => rest);
-      localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
-      setSubjects(updatedSubjects);
+    });
   }
 
   const handleCancelation = () => {
@@ -241,20 +240,21 @@ export default function Home() {
   };
   
   const handleFileDelete = (fileName: string) => {
-    // Rebuild the subjects array immutably.
-    const newSubjects = subjects.map(subject => ({
-        ...subject,
-        topics: subject.topics
-            .map(topic => ({
-                ...topic,
-                questions: topic.questions.filter(q => q.sourceFile !== fileName)
-            }))
-            .filter(topic => topic.questions.length > 0)
-    }));
+    setSubjects(currentSubjects => {
+        const newSubjects = currentSubjects.map(subject => ({
+            ...subject,
+            topics: subject.topics
+                .map(topic => ({
+                    ...topic,
+                    questions: topic.questions.filter(q => q.sourceFile !== fileName)
+                }))
+                .filter(topic => topic.questions.length > 0)
+        }));
 
-    const subjectsToStore = newSubjects.map(({ icon, ...rest }) => rest);
-    localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
-    setSubjects(newSubjects);
+        const subjectsToStore = newSubjects.map(({ icon, ...rest }) => rest);
+        localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
+        return newSubjects;
+    });
 
     toast({
       title: "Document Removed",
