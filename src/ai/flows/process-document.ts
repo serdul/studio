@@ -30,7 +30,7 @@ const extractQuestionsPrompt = ai.definePrompt({
     input: { schema: z.object({ documentUri: z.string() }) },
     output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")) }) },
     prompt: `You are an expert at parsing medical exam documents. Your task is to extract all questions from the provided document, regardless of their format (e.g., multiple-choice, short-essay).
-The document is provided as media. You will perform OCR if necessary.
+The document is provided as media, which could be an image or a multi-page PDF. Analyze its visual layout and perform OCR if necessary to extract the questions.
 
 {{media url=documentUri}}
 
