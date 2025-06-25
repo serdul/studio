@@ -18,6 +18,7 @@ const ClassifyExamQuestionsInputSchema = z.object({
 export type ClassifyExamQuestionsInput = z.infer<typeof ClassifyExamQuestionsInputSchema>;
 
 const ClassifyExamQuestionsOutputSchema = z.object({
+  question: z.string().describe('The original question text.'),
   topic: z.string().describe('The classified topic for the question.'),
   confidence: z.number().describe('The confidence level of the classification (0-1).'),
 });
@@ -32,7 +33,10 @@ export async function classifyExamQuestions(
 const prompt = ai.definePrompt({
   name: 'classifyExamQuestionsPrompt',
   input: {schema: ClassifyExamQuestionsInputSchema},
-  output: {schema: ClassifyExamQuestionsOutputSchema},
+  output: {schema: z.object({
+    topic: z.string().describe('The classified topic for the question.'),
+    confidence: z.number().describe('The confidence level of the classification (0-1).'),
+  })},
   prompt: `You are an expert medical exam question classifier.
 
   Given a question and a list of predefined topics, classify the question into one of the topics.
@@ -56,6 +60,9 @@ const classifyExamQuestionsFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    return {
+      question: input.question,
+      ...output!,
+    };
   }
 );

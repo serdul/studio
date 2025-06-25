@@ -2,6 +2,7 @@ export interface Topic {
   name: string;
   count: number;
   files: string[];
+  questions: string[];
 }
 
 export interface Subject {

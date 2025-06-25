@@ -18,7 +18,7 @@ export type ProcessDocumentInput = z.infer<typeof ProcessDocumentInputSchema>;
 
 const ProcessDocumentOutputSchema = z.object({
   questionsFound: z.number(),
-  classifiedTopics: z.array(z.custom<ClassifyExamQuestionsOutput>()),
+  classifiedQuestions: z.array(z.custom<ClassifyExamQuestionsOutput>()),
 });
 export type ProcessDocumentOutput = z.infer<typeof ProcessDocumentOutputSchema>;
 
@@ -67,7 +67,7 @@ const processDocumentFlow = ai.defineFlow(
     
     if (questionsFound === 0) {
       console.log("AI could not identify any questions in the document.");
-      return { questionsFound: 0, classifiedTopics: [] };
+      return { questionsFound: 0, classifiedQuestions: [] };
     }
 
     // Step 2: Concurrently classify all extracted questions.
@@ -78,8 +78,8 @@ const processDocumentFlow = ai.defineFlow(
     const results = await Promise.all(classificationPromises);
 
     // Step 3: Filter out any null results from errors and non-matches.
-    const classifiedTopics = results.filter((result): result is ClassifyExamQuestionsOutput => !!result && result.topic.trim().toLowerCase() !== 'other');
+    const classifiedQuestions = results.filter((result): result is ClassifyExamQuestionsOutput => !!result && result.topic.trim().toLowerCase() !== 'other');
     
-    return { questionsFound, classifiedTopics };
+    return { questionsFound, classifiedQuestions };
   }
 );

@@ -47,6 +47,9 @@ export default function Home() {
 
             const mergedTopics = masterSubject.topics.map(masterTopic => {
                 const storedTopic = storedSubject.topics.find((t: Topic) => t.name === masterTopic.name);
+                if (storedTopic) {
+                  storedTopic.questions = storedTopic.questions || [];
+                }
                 return storedTopic ? { ...masterTopic, ...storedTopic } : masterTopic;
             });
 
@@ -99,7 +102,7 @@ export default function Home() {
             const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => `- ${topic.name}`)).join('\n');
             
             setProgressState(prev => ({ ...prev!, percentage: 50, message: "AI is extracting and classifying questions..." }));
-            const { questionsFound, classifiedTopics } = await processDocumentAction(fileDataUri, masterTopicList);
+            const { questionsFound, classifiedQuestions } = await processDocumentAction(fileDataUri, masterTopicList);
             
             setProgressState(prev => ({ ...prev!, percentage: 80, message: "Finalizing results..." }));
 
@@ -114,7 +117,7 @@ export default function Home() {
                 return;
             }
 
-            if (classifiedTopics.length === 0) {
+            if (classifiedQuestions.length === 0) {
                 toast({
                     variant: "destructive",
                     title: "Analysis Incomplete",
@@ -132,15 +135,17 @@ export default function Home() {
                 topics: s.topics.map(t => ({
                     ...t,
                     files: [...t.files],
+                    questions: t.questions ? [...t.questions] : [],
                 })),
                 icon: s.icon,
             }));
 
-            for (const result of classifiedTopics) {
+            for (const result of classifiedQuestions) {
                 for (const subject of newSubjects) {
                     const topicIndex = subject.topics.findIndex(t => t.name.trim().toLowerCase() === result.topic.trim().toLowerCase());
                     if (topicIndex !== -1) {
                         subject.topics[topicIndex].count += 1;
+                        subject.topics[topicIndex].questions.push(result.question);
                         if (!subject.topics[topicIndex].files.includes(file.name)) {
                             subject.topics[topicIndex].files.push(file.name);
                         }
@@ -165,7 +170,7 @@ export default function Home() {
             toast({
                 variant: "destructive",
                 title: "An Error Occurred During Analysis",
-                description: error instanceof Error ? error.message : String(error),
+                description: String(error),
             });
         } finally {
             // Give a moment for the user to see the "complete" message before resetting state
