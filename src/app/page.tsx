@@ -111,6 +111,7 @@ export default function Home() {
                     description: "The AI could not identify any questions in the document.",
                 });
                 setIsLoading(false);
+                setProgressState(null);
                 return;
             }
 
@@ -121,6 +122,7 @@ export default function Home() {
                     description: `The AI found ${questionsFound} questions, but none could be classified into the existing topics.`,
                 });
                 setIsLoading(false);
+                setProgressState(null);
                 return;
             }
 
@@ -161,13 +163,14 @@ export default function Home() {
             console.error("Error processing file:", error);
             toast({
                 variant: "destructive",
-                title: "Processing Error",
-                description: error instanceof Error ? error.message : "An unexpected error occurred while analyzing the document.",
+                title: "An Error Occurred During Analysis",
+                description: error instanceof Error ? error.message : String(error),
             });
         } finally {
-            // Give a moment for the user to see the "complete" message
+            // Give a moment for the user to see the "complete" message before resetting state
             setTimeout(() => {
                 setIsLoading(false);
+                setProgressState(null);
             }, 1000);
         }
     };
@@ -180,6 +183,7 @@ export default function Home() {
             description: "There was an error reading the uploaded file.",
         });
         setIsLoading(false);
+        setProgressState(null);
     };
   };
 

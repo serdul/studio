@@ -18,10 +18,7 @@ export async function processDocumentAction(
     return results;
   } catch (error) {
     console.error('Error processing document action:', error);
-    // Re-throw the error so the client-side catch block can display a useful message.
-    if (error instanceof Error) {
-        throw new Error(error.message || 'An unknown error occurred during AI analysis.');
-    }
-    throw new Error('An unknown error occurred during AI analysis.');
+    // Re-throw the error so the client-side catch block can display the raw message.
+    throw new Error(String(error));
   }
 }
