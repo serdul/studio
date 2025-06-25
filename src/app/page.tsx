@@ -13,12 +13,14 @@ import { BookOpenCheck, BarChart3, Bot, Info } from 'lucide-react';
 import { UploadedFilesList } from '@/components/uploaded-files-list';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { DashboardSkeleton } from '@/components/dashboard-skeleton';
 
 export default function Home() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -54,6 +56,8 @@ export default function Home() {
     } catch (error) {
       console.error("Failed to load data from localStorage", error);
       setSubjects(MASTER_SUBJECTS);
+    } finally {
+      setIsInitialLoading(false);
     }
   }, []);
 
@@ -141,6 +145,44 @@ export default function Home() {
     setSelectedTopic(topic);
   };
 
+  const renderMainContent = () => {
+    if (isInitialLoading) {
+        return <DashboardSkeleton />;
+    }
+
+    if (isLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-4">
+          <Bot className="h-12 w-12 text-primary animate-bounce" />
+          <p className="text-lg font-medium text-foreground">AI is analyzing your document...</p>
+          <p className="text-muted-foreground">This may take a moment.</p>
+          <Progress value={progress} className="w-full max-w-md mt-4" />
+        </div>
+      );
+    }
+
+    if (uploadedFiles.length === 0) {
+      return (
+        <div className="text-center py-20">
+          <BarChart3 className="mx-auto h-16 w-16 text-muted-foreground" />
+          <h2 className="mt-4 text-2xl font-semibold">Welcome to your Hot Zone Dashboard</h2>
+          <p className="mt-2 text-muted-foreground">Upload a medical exam paper to get started.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div className="lg:col-span-2">
+          <Dashboard subjects={subjects} onTopicSelect={handleTopicSelect} />
+        </div>
+        <div className="lg:col-span-1">
+          <UploadedFilesList files={uploadedFiles} />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -161,33 +203,7 @@ export default function Home() {
       </header>
 
       <main className="flex-1 container py-8">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4">
-            <Bot className="h-12 w-12 text-primary animate-bounce" />
-            <p className="text-lg font-medium text-foreground">AI is analyzing your document...</p>
-            <p className="text-muted-foreground">This may take a moment.</p>
-            <Progress value={progress} className="w-full max-w-md mt-4" />
-          </div>
-        ) : (
-          <>
-            {uploadedFiles.length === 0 ? (
-              <div className="text-center py-20">
-                <BarChart3 className="mx-auto h-16 w-16 text-muted-foreground" />
-                <h2 className="mt-4 text-2xl font-semibold">Welcome to your Hot Zone Dashboard</h2>
-                <p className="mt-2 text-muted-foreground">Upload a medical exam paper to get started.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                  <div className="lg:col-span-2">
-                      <Dashboard subjects={subjects} onTopicSelect={handleTopicSelect} />
-                  </div>
-                  <div className="lg:col-span-1">
-                      <UploadedFilesList files={uploadedFiles} />
-                  </div>
-              </div>
-            )}
-          </>
-        )}
+        {renderMainContent()}
       </main>
 
       <TopicDetailSheet
