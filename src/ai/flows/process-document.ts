@@ -32,8 +32,8 @@ const extractQuestionsPrompt = ai.definePrompt({
     name: 'extractQuestionsFromDocument',
     input: { schema: z.object({ documentUri: z.string() }) },
     output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")) }) },
-    system: `You are an expert AI assistant specializing in parsing medical exam documents. Your task is to meticulously extract all questions from the provided document. Analyze its visual layout across all pages and perform OCR as needed to extract the text.`,
-    prompt: `
+    prompt: `You are an expert AI assistant specializing in parsing medical exam documents. Your task is to meticulously extract all questions from the provided document. Analyze its visual layout across all pages and perform OCR as needed to extract the text.
+
 {{media url=documentUri}}
 
 Your goal is to identify and list every complete question in the entire document.
