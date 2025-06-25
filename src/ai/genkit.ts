@@ -1,11 +1,13 @@
 import {genkit} from 'genkit';
-import type {GenkitPlugin} from 'genkit';
+import type {GenkitOptions, GenkitPlugin} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
 const plugins: GenkitPlugin[] = [];
+const options: GenkitOptions = {plugins};
 
 if (process.env.GOOGLE_API_KEY) {
   plugins.push(googleAI());
+  options.model = 'googleai/gemini-2.0-flash';
 } else {
   console.warn(`
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -23,7 +25,4 @@ if (process.env.GOOGLE_API_KEY) {
   `);
 }
 
-export const ai = genkit({
-  plugins,
-  model: 'googleai/gemini-2.0-flash',
-});
+export const ai = genkit(options);
