@@ -41,8 +41,8 @@ export function UploadedFilesList({ files, onFileDelete }: UploadedFilesListProp
       <CardContent>
         {files.length > 0 ? (
           <ul className="space-y-2">
-            {files.map((file) => (
-              <li key={file} className="flex items-center gap-3 rounded-md border p-3 bg-secondary/50">
+            {files.map((file, index) => (
+              <li key={`${file}-${index}`} className="flex items-center gap-3 rounded-md border p-3 bg-secondary/50">
                 <FileText className="h-5 w-5 text-muted-foreground" />
                 <span className="flex-1 text-sm font-medium truncate">{file}</span>
                 <AlertDialog>
