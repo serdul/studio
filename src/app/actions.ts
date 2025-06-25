@@ -11,9 +11,11 @@ export async function processDocumentAction(
     const results = await processDocument({ fileDataUri, masterTopicList });
     return results;
   } catch (error) {
-    console.error('Error processing document:', error);
-    // In a real app, you might want to throw a more specific error
-    // or return a structured error object.
-    return { questionsFound: 0, classifiedTopics: [] };
+    console.error('Error processing document action:', error);
+    // Re-throw the error so the client-side catch block can display a useful message.
+    if (error instanceof Error) {
+        throw new Error(error.message || 'An unknown error occurred during AI analysis.');
+    }
+    throw new Error('An unknown error occurred during AI analysis.');
   }
 }

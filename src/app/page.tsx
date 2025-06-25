@@ -161,7 +161,7 @@ export default function Home() {
             toast({
                 variant: "destructive",
                 title: "Processing Error",
-                description: "An unexpected error occurred while analyzing the document.",
+                description: error instanceof Error ? error.message : "An unexpected error occurred while analyzing the document.",
             });
         } finally {
             setIsLoading(false);

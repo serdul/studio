@@ -58,31 +58,25 @@ const processDocumentFlow = ai.defineFlow(
     outputSchema: ProcessDocumentOutputSchema,
   },
   async ({ fileDataUri, masterTopicList }) => {
-    try {
-      const extractionResult = await extractQuestionsPrompt({ documentUri: fileDataUri });
-      const questions = extractionResult.output?.questions || [];
-      const questionsFound = questions.length;
-      
-      if (questionsFound === 0) {
-        console.log("AI could not identify any questions in the document.");
-        return { questionsFound: 0, classifiedTopics: [] };
-      }
-
-      // Concurrently classify all questions
-      const classificationPromises = questions.map(question =>
-        classifyExamQuestions({ question, masterTopicList })
-      );
-      
-      const results = await Promise.all(classificationPromises);
-
-      // Filter out any null results from errors and non-matches
-      const classifiedTopics = results.filter((result): result is ClassifyExamQuestionsOutput => !!result && result.topic !== 'Other');
-      
-      return { questionsFound, classifiedTopics };
-
-    } catch (error) {
-      console.error("Error processing document in flow:", error);
+    const extractionResult = await extractQuestionsPrompt({ documentUri: fileDataUri });
+    const questions = extractionResult.output?.questions || [];
+    const questionsFound = questions.length;
+    
+    if (questionsFound === 0) {
+      console.log("AI could not identify any questions in the document.");
       return { questionsFound: 0, classifiedTopics: [] };
     }
+
+    // Concurrently classify all questions
+    const classificationPromises = questions.map(question =>
+      classifyExamQuestions({ question, masterTopicList })
+    );
+    
+    const results = await Promise.all(classificationPromises);
+
+    // Filter out any null results from errors and non-matches
+    const classifiedTopics = results.filter((result): result is ClassifyExamQuestionsOutput => !!result && result.topic !== 'Other');
+    
+    return { questionsFound, classifiedTopics };
   }
 );
