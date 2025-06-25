@@ -23,7 +23,7 @@ export const ClassifiedQuestionSchema = z.object({
   question: z.string().describe('The original question text.'),
   subject: z.string().describe('The classified subject for the question.'),
   topic: z.string().describe('The dynamically identified, generalized topic for the question.'),
-  rationale: z.string().describe("The AI's explanation for its classification choice."),
+  rationale: z.string().optional().describe("The AI's explanation for its classification choice."),
 });
 export type ClassifiedQuestion = z.infer<typeof ClassifiedQuestionSchema>;
 

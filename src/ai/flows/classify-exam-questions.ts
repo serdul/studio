@@ -37,7 +37,7 @@ const classifyQuestionPrompt = ai.definePrompt({
   output: {schema: z.object({
     subject: z.string().describe('The classified subject for the question. Must be one of the provided subjects.'),
     topic: z.string().describe('The dynamically identified, generalized topic for the question.'),
-    rationale: z.string().describe("A brief explanation of why this subject and topic were chosen. Explain your reasoning, especially if the topic is newly improvised or the question was ambiguous."),
+    rationale: z.string().optional().describe("A brief explanation of why this subject and topic were chosen. Explain your reasoning, especially if the topic is newly improvised or the question was ambiguous."),
   })},
   prompt: `You are an expert medical exam question classifier. Your task is to analyze a given medical question and assign it to a single subject and a single, generalized topic. You should also provide a brief rationale for your choice.
 
