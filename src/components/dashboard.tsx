@@ -19,8 +19,8 @@ export function Dashboard({ subjects, onTopicSelect }: DashboardProps) {
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
       {subjects.map((subject) => {
-        const sortedTopics = [...subject.topics].sort((a, b) => b.count - a.count);
-        const hasData = sortedTopics.some(t => t.count > 0);
+        const sortedTopics = [...subject.topics].sort((a, b) => b.questions.length - a.questions.length);
+        const hasData = sortedTopics.some(t => t.questions.length > 0);
         const Icon = subject.icon;
         
         return (
@@ -35,17 +35,17 @@ export function Dashboard({ subjects, onTopicSelect }: DashboardProps) {
             <CardContent className="flex-1">
               {hasData ? (
                 <ul className="space-y-1">
-                  {sortedTopics.filter(topic => topic.count > 0).map((topic) => (
+                  {sortedTopics.filter(topic => topic.questions.length > 0).map((topic) => (
                     <li key={topic.name}
                         onClick={() => onTopicSelect(topic)}
                         className="flex items-center justify-between rounded-md px-3 py-2 cursor-pointer transition-colors hover:bg-secondary"
                     >
                       <span className="flex-1 pr-4 text-sm font-medium">{topic.name}</span>
                       <Badge 
-                        variant={topic.count > 2 ? "default" : "secondary"} 
+                        variant={topic.questions.length > 2 ? "default" : "secondary"} 
                         className="shrink-0 text-xs"
-                        aria-label={`${topic.count} mentions`}>
-                        {topic.count}
+                        aria-label={`${topic.questions.length} mentions`}>
+                        {topic.questions.length}
                       </Badge>
                     </li>
                   ))}

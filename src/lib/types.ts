@@ -1,8 +1,11 @@
+export interface Question {
+  text: string;
+  sourceFile: string;
+}
+
 export interface Topic {
   name: string;
-  count: number;
-  files: string[];
-  questions: string[];
+  questions: Question[];
 }
 
 export interface Subject {

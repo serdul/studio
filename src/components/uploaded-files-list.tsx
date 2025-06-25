@@ -7,13 +7,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { FileText, FolderOpen } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { FileText, FolderOpen, Trash2 } from "lucide-react"
 
 interface UploadedFilesListProps {
-  files: string[]
+  files: string[];
+  onFileDelete: (fileName: string) => void;
 }
 
-export function UploadedFilesList({ files }: UploadedFilesListProps) {
+export function UploadedFilesList({ files, onFileDelete }: UploadedFilesListProps) {
   return (
     <Card>
       <CardHeader>
@@ -31,7 +44,32 @@ export function UploadedFilesList({ files }: UploadedFilesListProps) {
             {files.map((file) => (
               <li key={file} className="flex items-center gap-3 rounded-md border p-3 bg-secondary/50">
                 <FileText className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm font-medium">{file}</span>
+                <span className="flex-1 text-sm font-medium truncate">{file}</span>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="shrink-0">
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <span className="sr-only">Delete {file}</span>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete {file}?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the document and all its associated analysis data from your dashboard.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onFileDelete(file)}
+                        className="bg-destructive hover:bg-destructive/90"
+                      >
+                        Yes, delete file
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </li>
             ))}
           </ul>

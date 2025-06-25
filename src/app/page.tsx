@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Subject, Topic, ProgressState } from '@/lib/types';
+import type { Subject, Topic, ProgressState, Question } from '@/lib/types';
 import { MASTER_SUBJECTS } from '@/lib/mockData';
 import { processDocumentAction } from '@/app/actions';
 import { FileUploader } from '@/components/file-uploader';
@@ -39,23 +39,19 @@ export default function Home() {
         const mergedSubjects = MASTER_SUBJECTS.map(masterSubject => {
             const storedSubject = storedSubjects.find((s: Subject) => s.name === masterSubject.name);
             if (!storedSubject) {
-                return {
-                  ...masterSubject,
-                  icon: masterSubject.icon, 
-                };
+                return masterSubject;
             }
 
             const mergedTopics = masterSubject.topics.map(masterTopic => {
                 const storedTopic = storedSubject.topics.find((t: Topic) => t.name === masterTopic.name);
-                if (storedTopic) {
-                  storedTopic.questions = storedTopic.questions || [];
+                if (storedTopic?.questions && Array.isArray(storedTopic.questions) && (storedTopic.questions.length === 0 || (typeof storedTopic.questions[0] === 'object' && storedTopic.questions[0] !== null && 'text' in storedTopic.questions[0]))) {
+                    return { ...masterTopic, questions: storedTopic.questions };
                 }
-                return storedTopic ? { ...masterTopic, ...storedTopic } : masterTopic;
+                return masterTopic;
             });
 
             return {
                 ...masterSubject,
-                icon: masterSubject.icon, 
                 topics: mergedTopics,
             };
         });
@@ -75,8 +71,8 @@ export default function Home() {
     const allFiles = new Set<string>();
     subjects.forEach(subject => {
         subject.topics.forEach(topic => {
-            topic.files.forEach(file => {
-                allFiles.add(file);
+            topic.questions.forEach(question => {
+                allFiles.add(question.sourceFile);
             });
         });
     });
@@ -130,25 +126,17 @@ export default function Home() {
 
             setProgressState(prev => ({ ...prev!, percentage: 95, message: "Updating dashboard..." }));
             
-            const newSubjects: Subject[] = subjects.map(s => ({
-                ...s,
-                topics: s.topics.map(t => ({
-                    ...t,
-                    files: [...t.files],
-                    questions: t.questions ? [...t.questions] : [],
-                })),
-                icon: s.icon,
-            }));
+            const newSubjects: Subject[] = JSON.parse(JSON.stringify(subjects));
 
             for (const result of classifiedQuestions) {
                 for (const subject of newSubjects) {
                     const topicIndex = subject.topics.findIndex(t => t.name.trim().toLowerCase() === result.topic.trim().toLowerCase());
                     if (topicIndex !== -1) {
-                        subject.topics[topicIndex].count += 1;
-                        subject.topics[topicIndex].questions.push(result.question);
-                        if (!subject.topics[topicIndex].files.includes(file.name)) {
-                            subject.topics[topicIndex].files.push(file.name);
-                        }
+                        const newQuestion: Question = {
+                            text: result.question,
+                            sourceFile: file.name
+                        };
+                        subject.topics[topicIndex].questions.push(newQuestion);
                         break; 
                     }
                 }
@@ -196,6 +184,27 @@ export default function Home() {
   const handleTopicSelect = (topic: Topic) => {
     setSelectedTopic(topic);
   };
+  
+  const handleFileDelete = (fileName: string) => {
+    const newSubjects: Subject[] = JSON.parse(JSON.stringify(subjects));
+
+    for (const subject of newSubjects) {
+      for (const topic of subject.topics) {
+        topic.questions = topic.questions.filter(
+          (q: Question) => q.sourceFile !== fileName
+        );
+      }
+    }
+
+    const subjectsToStore = newSubjects.map(({ icon, ...rest }: Subject) => rest);
+    localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
+    setSubjects(newSubjects);
+
+    toast({
+      title: "Document Removed",
+      description: `${fileName} and its associated data have been removed.`,
+    });
+  };
 
   const renderMainContent = () => {
     if (isInitialLoading) {
@@ -229,7 +238,7 @@ export default function Home() {
           <Dashboard subjects={subjects} onTopicSelect={handleTopicSelect} />
         </div>
         <div className="lg:col-span-1">
-          <UploadedFilesList files={uploadedFiles} />
+          <UploadedFilesList files={uploadedFiles} onFileDelete={handleFileDelete} />
         </div>
       </div>
     );
