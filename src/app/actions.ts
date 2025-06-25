@@ -28,9 +28,17 @@ export async function processExamFileAction(
 
     // Step 2: Classify the extracted questions
     const classificationResult = await classifyQuestions({ questions: extractionResult.questions });
+    
+    // Step 3: Verify that classification produced results
+    if (classificationResult.classifiedQuestions.length === 0) {
+      throw new Error(
+        'The AI extracted questions but failed to classify them. The document format might be unusual. Please try another file.'
+      );
+    }
+
     return classificationResult.classifiedQuestions;
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in processExamFileAction:', error);
     throw new Error(String(error));
   }
@@ -43,7 +51,7 @@ export async function explainQuestionAction(
   try {
     const result = await explainQuestion({ question });
     return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in explainQuestionAction:', error);
     throw new Error(String(error));
   }

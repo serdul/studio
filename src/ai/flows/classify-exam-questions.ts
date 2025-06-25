@@ -40,7 +40,9 @@ export async function classifyQuestions(
       classifiedQuestions.push(fullQuestionData);
     } else if (result.status === 'rejected') {
       console.error(
-        `Failed to classify question: "${input.questions[index]}"`,
+        `Failed to classify question #${index + 1}: "${input.questions[
+          index
+        ].substring(0, 100)}..."`,
         result.reason
       );
       // We are choosing to skip failed questions instead of crashing the app.
