@@ -19,3 +19,8 @@ export interface ClassifiedTopic {
   topic: string;
   confidence: number;
 }
+
+export interface ProgressState {
+  percentage: number;
+  message: string;
+}

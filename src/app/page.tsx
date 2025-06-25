@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Subject, Topic } from '@/lib/types';
+import type { Subject, Topic, ProgressState } from '@/lib/types';
 import { MASTER_SUBJECTS } from '@/lib/mockData';
 import { processDocumentAction } from '@/app/actions';
 import { FileUploader } from '@/components/file-uploader';
@@ -26,7 +26,7 @@ import {
 export default function Home() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [progressState, setProgressState] = useState<ProgressState | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const { toast } = useToast();
@@ -37,7 +37,6 @@ export default function Home() {
       const storedData = localStorage.getItem('medHotspotData');
       if (storedData) {
         const { subjects: storedSubjects } = JSON.parse(storedData);
-        // Deep clone and re-assign icons to avoid mutation and ensure components are valid
         const mergedSubjects = MASTER_SUBJECTS.map(masterSubject => {
             const storedSubject = storedSubjects.find((s: Subject) => s.name === masterSubject.name);
             if (!storedSubject) {
@@ -84,7 +83,7 @@ export default function Home() {
 
   const handleFileUpload = async (file: File) => {
     setIsLoading(true);
-    setProgress(0);
+    setProgressState({ percentage: 0, message: "Starting upload..." });
 
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -96,12 +95,14 @@ export default function Home() {
                 throw new Error("Failed to read file.");
             }
 
-            setProgress(30);
+            setProgressState({ percentage: 25, message: "Preparing document for analysis..." });
 
             const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => `- ${topic.name}`)).join('\n');
+            
+            setProgressState(prev => ({ ...prev!, percentage: 50, message: "AI is extracting and classifying questions..." }));
             const { questionsFound, classifiedTopics } = await processDocumentAction(fileDataUri, masterTopicList);
             
-            setProgress(70);
+            setProgressState(prev => ({ ...prev!, percentage: 80, message: "Finalizing results..." }));
 
             if (questionsFound === 0) {
                 toast({
@@ -149,7 +150,7 @@ export default function Home() {
             localStorage.setItem('medHotspotData', JSON.stringify({ subjects: subjectsToStore }));
             setSubjects(newSubjects);
             
-            setProgress(100);
+            setProgressState({ percentage: 100, message: "Analysis complete!"});
 
             toast({
                 title: "Processing Complete",
@@ -164,7 +165,10 @@ export default function Home() {
                 description: error instanceof Error ? error.message : "An unexpected error occurred while analyzing the document.",
             });
         } finally {
-            setIsLoading(false);
+            // Give a moment for the user to see the "complete" message
+            setTimeout(() => {
+                setIsLoading(false);
+            }, 1000);
         }
     };
 
@@ -188,13 +192,13 @@ export default function Home() {
         return <DashboardSkeleton />;
     }
 
-    if (isLoading) {
+    if (isLoading && progressState) {
       return (
-        <div className="flex flex-col items-center justify-center h-full gap-4">
+        <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
           <Bot className="h-12 w-12 text-primary animate-bounce" />
-          <p className="text-lg font-medium text-foreground">AI is analyzing your document...</p>
-          <p className="text-muted-foreground">This may take a moment.</p>
-          <Progress value={progress} className="w-full max-w-md mt-4" />
+          <p className="text-xl font-medium text-foreground">AI In Progress</p>
+          <p className="text-muted-foreground max-w-md">{progressState.message}</p>
+          <Progress value={progressState.percentage} className="w-full max-w-md mt-4" />
         </div>
       );
     }
@@ -229,11 +233,11 @@ export default function Home() {
             <BookOpenCheck className="h-7 w-7 text-primary" />
             <h1 className="text-2xl font-bold text-foreground">MedHotspot</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
              <FileUploader onFileUpload={handleFileUpload} disabled={isLoading} />
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
+                  <Button variant="ghost" size="icon">
                     <MoreVertical className="h-5 w-5" />
                     <span className="sr-only">More options</span>
                   </Button>
