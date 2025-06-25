@@ -1,21 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Cpu, Database, FileText, Monitor } from "lucide-react";
-import Link from "next/link";
+import { Cpu, Database, FileText, Monitor } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { PageFooter } from "@/components/page-footer";
 
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center">
-            <Button asChild variant="outline" size="sm">
-                <Link href="/">
-                <ArrowLeft className="mr-2" />
-                Back to Dashboard
-                </Link>
-            </Button>
-        </div>
-      </header>
+      <PageHeader />
 
       <main className="container py-8">
         <div className="max-w-4xl mx-auto">
@@ -86,9 +77,7 @@ export default function AboutPage() {
             </Card>
             </div>
 
-            <footer className="py-8 mt-8 text-center text-sm text-muted-foreground">
-                Built with AI by Firebase Studio.
-            </footer>
+            <PageFooter />
         </div>
       </main>
     </div>

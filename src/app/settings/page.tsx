@@ -23,9 +23,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { ArrowLeft, Moon, Sun, Laptop, Trash2, Paintbrush } from "lucide-react"
+import { Moon, Sun, Laptop, Trash2, Paintbrush } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import Link from "next/link"
+import { PageHeader } from "@/components/page-header"
+import { PageFooter } from "@/components/page-footer"
 
 export default function SettingsPage() {
   const { setTheme } = useTheme()
@@ -53,16 +54,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/">
-              <ArrowLeft className="mr-2" />
-              Back to Dashboard
-            </Link>
-          </Button>
-        </div>
-      </header>
+      <PageHeader />
 
       <main className="container py-8">
         <div className="max-w-2xl mx-auto">
@@ -130,6 +122,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+          <PageFooter />
         </div>
       </main>
     </div>
