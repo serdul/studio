@@ -16,7 +16,10 @@ const ProcessDocumentInputSchema = z.object({
 });
 export type ProcessDocumentInput = z.infer<typeof ProcessDocumentInputSchema>;
 
-const ProcessDocumentOutputSchema = z.array(z.custom<ClassifyExamQuestionsOutput>());
+const ProcessDocumentOutputSchema = z.object({
+  questionsFound: z.number(),
+  classifiedTopics: z.array(z.custom<ClassifyExamQuestionsOutput>()),
+});
 export type ProcessDocumentOutput = z.infer<typeof ProcessDocumentOutputSchema>;
 
 export async function processDocument(
@@ -29,19 +32,22 @@ const extractQuestionsPrompt = ai.definePrompt({
     name: 'extractQuestionsFromDocument',
     input: { schema: z.object({ documentUri: z.string() }) },
     output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")) }) },
-    prompt: `You are an expert at parsing medical exam documents. Your task is to extract all questions from the provided document, regardless of their format (e.g., multiple-choice, short-essay).
-The document is provided as media, which could be an image or a multi-page PDF. Analyze its visual layout and perform OCR if necessary to extract the questions.
+    prompt: `You are an expert AI assistant specializing in parsing medical exam documents. Your task is to meticulously extract all questions from the provided document. The document is provided as media, which could be an image or a multi-page PDF. Analyze its visual layout and perform OCR as needed to extract the text.
 
 {{media url=documentUri}}
 
-Each item in the output array should be a single string containing one full, complete question.
+Your goal is to identify and list every complete question.
 
-- **For Multiple-Choice Questions (MCQs):** A complete question includes the question stem and all of its associated options (e.g., a, b, c, d, e).
-- **For Short-Essay Questions (SEQs):** If there is a main clinical scenario followed by sub-questions (like 1.1, 1.2), combine the main scenario text with *each* sub-question to form a complete, standalone question. This ensures each question has full context for analysis.
+**Question Formatting Rules:**
 
-**CRUCIAL INSTRUCTIONS:**
-1.  **IGNORE ANSWERS:** You MUST NOT include any text that is an answer, a rationale, or a principle of management. Only extract the question content itself. For example, if you see "1. Full blood count" following a question about investigations, ignore it.
-2.  **IGNORE METADATA:** Ignore all non-question text like page headers, footers, page numbers, or compiler names. For example, you must ignore text like "GENERAL SIR JOHN KOTELAWALA DEFENCE UNIVERSITY", "SURGERY - MCQ", "Duration 02 Hours", "Duplicate copy prepared by Intake 31 MMS", "KDU SEQ Paediatrics", or "Intake 27 Proper 27 August 2014".
+*   **For Multiple-Choice Questions (MCQs):** A complete question includes the question stem and all of its associated options (e.g., a, b, c, d, e).
+*   **For Short-Essay Questions (SEQs):** If a clinical scenario is followed by sub-questions (e.g., 1.1, 1.2), you MUST combine the main scenario text with *each* sub-question. This ensures every extracted question is a standalone item with full context.
+
+**Crucial Extraction Instructions:**
+
+1.  **IGNORE ALL ANSWERS:** Do not include any text that is an answer, a rationale, or a principle of management. This is the most important rule. For example, if you see "1. Full blood count" or "A. The correct answer is..." following a question, you must ignore it completely.
+2.  **IGNORE METADATA & NOISE:** Ignore all non-question text. This includes page headers, footers, page numbers, compiler names, timestamps, and watermarks. For example, you must ignore text like "GENERAL SIR JOHN KOTELAWALA DEFENCE UNIVERSITY", "SURGERY - MCQ", "Duration 02 Hours", "KDU SEQ Paediatrics", "Intake 27 Proper 27 August 2014", or "Scanned with CamScanner".
+3.  **OUTPUT FORMAT:** Return the result as a JSON object with a single key "questions" which contains an array of strings. Each string in the array must be a full, complete question. If you cannot find any questions that match the criteria, return an empty array for the "questions" key.
 `,
 });
 
@@ -55,10 +61,11 @@ const processDocumentFlow = ai.defineFlow(
     try {
       const extractionResult = await extractQuestionsPrompt({ documentUri: fileDataUri });
       const questions = extractionResult.output?.questions || [];
+      const questionsFound = questions.length;
       
-      if (questions.length === 0) {
+      if (questionsFound === 0) {
         console.log("AI could not identify any questions in the document.");
-        return [];
+        return { questionsFound: 0, classifiedTopics: [] };
       }
 
       // Concurrently classify all questions
@@ -69,11 +76,13 @@ const processDocumentFlow = ai.defineFlow(
       const results = await Promise.all(classificationPromises);
 
       // Filter out any null results from errors and non-matches
-      return results.filter((result): result is ClassifyExamQuestionsOutput => !!result && result.topic !== 'Other');
+      const classifiedTopics = results.filter((result): result is ClassifyExamQuestionsOutput => !!result && result.topic !== 'Other');
+      
+      return { questionsFound, classifiedTopics };
 
     } catch (error) {
       console.error("Error processing document in flow:", error);
-      return [];
+      return { questionsFound: 0, classifiedTopics: [] };
     }
   }
 );

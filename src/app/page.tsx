@@ -99,15 +99,25 @@ export default function Home() {
             setProgress(30);
 
             const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => topic.name)).join(', ');
-            const classifiedTopics = await processDocumentAction(fileDataUri, masterTopicList);
+            const { questionsFound, classifiedTopics } = await processDocumentAction(fileDataUri, masterTopicList);
             
             setProgress(70);
+
+            if (questionsFound === 0) {
+                toast({
+                    variant: "destructive",
+                    title: "Analysis Failed",
+                    description: "The AI could not identify any questions in the document.",
+                });
+                setIsLoading(false);
+                return;
+            }
 
             if (classifiedTopics.length === 0) {
                 toast({
                     variant: "destructive",
-                    title: "Analysis Failed",
-                    description: "The AI could not identify any classifiable questions in the document.",
+                    title: "Analysis Incomplete",
+                    description: `The AI found ${questionsFound} questions, but none could be classified into the existing topics.`,
                 });
                 setIsLoading(false);
                 return;

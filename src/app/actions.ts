@@ -14,6 +14,6 @@ export async function processDocumentAction(
     console.error('Error processing document:', error);
     // In a real app, you might want to throw a more specific error
     // or return a structured error object.
-    return [];
+    return { questionsFound: 0, classifiedTopics: [] };
   }
 }

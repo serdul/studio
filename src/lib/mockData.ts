@@ -1,5 +1,5 @@
 import type { Subject } from './types';
-import { Heart, Brain, Wind, Bone, Activity, Stethoscope, Baby } from 'lucide-react';
+import { Heart, Brain, Wind, Bone, Activity, Stethoscope, Baby, Scissors } from 'lucide-react';
 
 export const MASTER_SUBJECTS: Subject[] = [
   { 
@@ -64,6 +64,28 @@ export const MASTER_SUBJECTS: Subject[] = [
       { name: 'Systemic Lupus Erythematosus', count: 0, files: [] },
       { name: 'Gout', count: 0, files: [] },
       { name: 'Osteoarthritis', count: 0, files: [] },
+    ]
+  },
+  {
+    name: 'Surgery',
+    icon: Scissors,
+    topics: [
+        { name: 'Appendicitis', count: 0, files: [] },
+        { name: 'Hernia', count: 0, files: [] },
+        { name: 'Cholecystitis', count: 0, files: [] },
+        { name: 'Bowel Obstruction', count: 0, files: [] },
+        { name: 'Trauma Management', count: 0, files: [] },
+    ]
+  },
+  {
+    name: 'Paediatrics',
+    icon: Baby,
+    topics: [
+        { name: 'Neonatal Jaundice', count: 0, files: [] },
+        { name: 'Febrile Seizures', count: 0, files: [] },
+        { name: 'Bronchiolitis', count: 0, files: [] },
+        { name: 'Gastroenteritis', count: 0, files: [] },
+        { name: 'Growth and Development', count: 0, files: [] },
     ]
   }
 ];
