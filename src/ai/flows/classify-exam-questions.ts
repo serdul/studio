@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow for classifying medical questions into subjects and topics.
@@ -9,7 +10,7 @@ import {
   type ClassifyQuestionsInput,
   type ClassifiedQuestion,
 } from '@/ai/schemas';
-import {z} from 'zod';
+import {z} from 'genkit';
 
 // This is the main function exported to the rest of the application.
 // It orchestrates the classification of multiple questions concurrently.
