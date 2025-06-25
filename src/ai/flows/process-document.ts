@@ -7,18 +7,23 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { classifyExamQuestions } from './classify-exam-questions';
-import type { ClassifyExamQuestionsOutput } from './classify-exam-questions';
+import { classifyQuestion } from './classify-exam-questions';
+import { MASTER_SUBJECTS } from '@/lib/mockData';
 
 const ProcessDocumentInputSchema = z.object({
   fileDataUri: z.string().describe("A file (PDF or image) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
-  masterTopicList: z.string().describe('A list of predefined topics.'),
 });
 export type ProcessDocumentInput = z.infer<typeof ProcessDocumentInputSchema>;
 
+const ClassifiedQuestionSchema = z.object({
+    question: z.string(),
+    subject: z.string(),
+    topic: z.string(),
+});
+
 const ProcessDocumentOutputSchema = z.object({
   questionsFound: z.number(),
-  classifiedQuestions: z.array(z.custom<ClassifyExamQuestionsOutput>()),
+  classifiedQuestions: z.array(ClassifiedQuestionSchema),
 });
 export type ProcessDocumentOutput = z.infer<typeof ProcessDocumentOutputSchema>;
 
@@ -58,7 +63,7 @@ const processDocumentFlow = ai.defineFlow(
     inputSchema: ProcessDocumentInputSchema,
     outputSchema: ProcessDocumentOutputSchema,
   },
-  async ({ fileDataUri, masterTopicList }) => {
+  async ({ fileDataUri }) => {
     
     // Step 1: Extract all questions from the entire document in a single AI call.
     const extractionResult = await extractQuestionsPrompt({ documentUri: fileDataUri });
@@ -72,14 +77,17 @@ const processDocumentFlow = ai.defineFlow(
     }
 
     // Step 2: Concurrently classify all extracted questions.
+    const subjectList = MASTER_SUBJECTS.map(s => s.name);
     const classificationPromises = allQuestions.map(question =>
-      classifyExamQuestions({ question, masterTopicList })
+      classifyQuestion({ question, subjectList })
     );
     
     const results = await Promise.all(classificationPromises);
 
-    // Step 3: Filter out any null results from errors and non-matches.
-    const classifiedQuestions = results.filter((result): result is ClassifyExamQuestionsOutput => !!result && result.topic.trim().toLowerCase() !== 'other');
+    // Step 3: Filter out any null results or unclassified items.
+    const classifiedQuestions = results.filter((result): result is { question: string, subject: string, topic: string } => 
+        !!result && !!result.subject && !!result.topic
+    );
     
     return { questionsFound, classifiedQuestions };
   }

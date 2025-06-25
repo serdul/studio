@@ -4,8 +4,7 @@ import { processDocument } from '@/ai/flows/process-document';
 import type { ProcessDocumentOutput } from '@/ai/flows/process-document';
 
 export async function processDocumentAction(
-  fileDataUri: string,
-  masterTopicList: string
+  fileDataUri: string
 ): Promise<ProcessDocumentOutput> {
   if (!process.env.GOOGLE_API_KEY) {
     throw new Error(
@@ -14,7 +13,7 @@ export async function processDocumentAction(
   }
 
   try {
-    const results = await processDocument({ fileDataUri, masterTopicList });
+    const results = await processDocument({ fileDataUri });
     return results;
   } catch (error) {
     console.error('Error processing document action:', error);

@@ -36,24 +36,10 @@ export default function Home() {
       const storedData = localStorage.getItem('medHotspotData');
       if (storedData) {
         const { subjects: storedSubjects } = JSON.parse(storedData);
+        // We merge stored data with the master list to ensure subjects are always present
         const mergedSubjects = MASTER_SUBJECTS.map(masterSubject => {
             const storedSubject = storedSubjects.find((s: Subject) => s.name === masterSubject.name);
-            if (!storedSubject) {
-                return masterSubject;
-            }
-
-            const mergedTopics = masterSubject.topics.map(masterTopic => {
-                const storedTopic = storedSubject.topics.find((t: Topic) => t.name === masterTopic.name);
-                if (storedTopic?.questions && Array.isArray(storedTopic.questions) && (storedTopic.questions.length === 0 || (typeof storedTopic.questions[0] === 'object' && storedTopic.questions[0] !== null && 'text' in storedTopic.questions[0]))) {
-                    return { ...masterTopic, questions: storedTopic.questions };
-                }
-                return masterTopic;
-            });
-
-            return {
-                ...masterSubject,
-                topics: mergedTopics,
-            };
+            return storedSubject ? { ...masterSubject, topics: storedSubject.topics } : masterSubject;
         });
         setSubjects(mergedSubjects);
       } else {
@@ -94,11 +80,9 @@ export default function Home() {
             }
 
             setProgressState({ percentage: 25, message: "Preparing document for analysis..." });
-
-            const masterTopicList = MASTER_SUBJECTS.flatMap(subject => subject.topics.map(topic => `- ${topic.name}`)).join('\n');
             
             setProgressState(prev => ({ ...prev!, percentage: 50, message: "AI is extracting and classifying questions..." }));
-            const { questionsFound, classifiedQuestions } = await processDocumentAction(fileDataUri, masterTopicList);
+            const { questionsFound, classifiedQuestions } = await processDocumentAction(fileDataUri);
             
             setProgressState(prev => ({ ...prev!, percentage: 80, message: "Finalizing results..." }));
 
@@ -129,15 +113,29 @@ export default function Home() {
             const newSubjects: Subject[] = JSON.parse(JSON.stringify(subjects));
 
             for (const result of classifiedQuestions) {
-                for (const subject of newSubjects) {
-                    const topicIndex = subject.topics.findIndex(t => t.name.trim().toLowerCase() === result.topic.trim().toLowerCase());
+                const subjectIndex = newSubjects.findIndex(s => s.name === result.subject);
+
+                if (subjectIndex !== -1) {
+                    const targetSubject = newSubjects[subjectIndex];
+                    // Normalize topic names for comparison
+                    const topicNameLower = result.topic.trim().toLowerCase();
+                    let topicIndex = targetSubject.topics.findIndex(t => t.name.trim().toLowerCase() === topicNameLower);
+
+                    const newQuestion: Question = {
+                        text: result.question,
+                        sourceFile: file.name
+                    };
+
                     if (topicIndex !== -1) {
-                        const newQuestion: Question = {
-                            text: result.question,
-                            sourceFile: file.name
+                        // Topic exists, just add the question
+                        targetSubject.topics[topicIndex].questions.push(newQuestion);
+                    } else {
+                        // New topic, create it and add the question
+                        const newTopic: Topic = {
+                            name: result.topic.trim(), // Use the trimmed original-casing topic name
+                            questions: [newQuestion]
                         };
-                        subject.topics[topicIndex].questions.push(newQuestion);
-                        break; 
+                        targetSubject.topics.push(newTopic);
                     }
                 }
             }
@@ -194,6 +192,8 @@ export default function Home() {
           (q: Question) => q.sourceFile !== fileName
         );
       }
+      // Also filter out topics that have no questions left
+      subject.topics = subject.topics.filter(t => t.questions.length > 0);
     }
 
     const subjectsToStore = newSubjects.map(({ icon, ...rest }: Subject) => rest);

@@ -1,68 +1,73 @@
 'use server';
 
 /**
- * @fileOverview A flow for classifying exam questions into predefined topics using AI.
+ * @fileOverview A flow for classifying exam questions into subjects and dynamically identifying topics.
  *
- * - classifyExamQuestions - A function that handles the classification of exam questions.
- * - ClassifyExamQuestionsInput - The input type for the classifyExamQuestions function.
- * - ClassifyExamQuestionsOutput - The return type for the classifyExamQuestions function.
+ * - classifyQuestion - A function that handles the classification of an exam question.
+ * - ClassifyQuestionInput - The input type for the classifyQuestion function.
+ * - ClassifyQuestionOutput - The return type for the classifyQuestion function.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const ClassifyExamQuestionsInputSchema = z.object({
+const ClassifyQuestionInputSchema = z.object({
   question: z.string().describe('The question to classify.'),
-  masterTopicList: z.string().describe('A list of predefined topics.'),
+  subjectList: z.array(z.string()).describe('A list of predefined medical subjects to classify against.'),
 });
-export type ClassifyExamQuestionsInput = z.infer<typeof ClassifyExamQuestionsInputSchema>;
+export type ClassifyQuestionInput = z.infer<typeof ClassifyQuestionInputSchema>;
 
-const ClassifyExamQuestionsOutputSchema = z.object({
+const ClassifyQuestionOutputSchema = z.object({
   question: z.string().describe('The original question text.'),
-  topic: z.string().describe('The classified topic for the question.'),
-  confidence: z.number().describe('The confidence level of the classification (0-1).'),
+  subject: z.string().describe('The classified subject for the question.'),
+  topic: z.string().describe('The dynamically identified, generalized topic for the question.'),
 });
-export type ClassifyExamQuestionsOutput = z.infer<typeof ClassifyExamQuestionsOutputSchema>;
+export type ClassifyQuestionOutput = z.infer<typeof ClassifyQuestionOutputSchema>;
 
-export async function classifyExamQuestions(
-  input: ClassifyExamQuestionsInput
-): Promise<ClassifyExamQuestionsOutput> {
-  return classifyExamQuestionsFlow(input);
+export async function classifyQuestion(
+  input: ClassifyQuestionInput
+): Promise<ClassifyQuestionOutput> {
+  return classifyQuestionFlow(input);
 }
 
 const prompt = ai.definePrompt({
-  name: 'classifyExamQuestionsPrompt',
-  input: {schema: ClassifyExamQuestionsInputSchema},
+  name: 'classifyQuestionPrompt',
+  input: {schema: ClassifyQuestionInputSchema},
   output: {schema: z.object({
-    topic: z.string().describe('The classified topic for the question.'),
-    confidence: z.number().describe('The confidence level of the classification (0-1).'),
+    subject: z.string().describe('The classified subject for the question. Must be one of the provided subjects.'),
+    topic: z.string().describe('The dynamically identified, generalized topic for the question.'),
   })},
-  prompt: `You are an expert medical exam question classifier.
+  prompt: `You are an expert medical exam question classifier. Your task is to analyze a given medical question and classify it into a subject and a core topic.
 
-  Given a question and a list of predefined topics, classify the question into one of the topics.
-  Return the classified topic and the confidence level of the classification.
+**Instructions:**
 
-  Question: {{{question}}}
+1.  **Classify the Subject:** First, determine which of the following medical subjects the question belongs to. The subject MUST be one of the following:
+    {{#each subjectList}}
+    - {{{this}}}
+    {{/each}}
 
-  Master Topic List:
-{{{masterTopicList}}}
+2.  **Identify the Core Topic:** Second, identify the primary medical topic of the question. This topic should be a general, high-level concept.
+    *   **Crucial Rule:** Do NOT create overly specific topics. Consolidate concepts. For example, if a question is about the 'management of inflammatory bowel disease' or 'pathology of inflammatory bowel disease', the topic should simply be 'Inflammatory Bowel Disease'. Similarly, 'treatment of myocardial infarction' should be 'Myocardial Infarction'.
 
-  Make sure the topic is exactly from the Master Topic List.
-  If the topic is not in the list, return "Other".
+3. **Output:** Return the single most appropriate subject and the generated core topic. If you cannot confidently classify the question, return an empty string for both the subject and topic fields.
+
+**Input Question:**
+{{{question}}}
   `,
 });
 
-const classifyExamQuestionsFlow = ai.defineFlow(
+const classifyQuestionFlow = ai.defineFlow(
   {
-    name: 'classifyExamQuestionsFlow',
-    inputSchema: ClassifyExamQuestionsInputSchema,
-    outputSchema: ClassifyExamQuestionsOutputSchema,
+    name: 'classifyQuestionFlow',
+    inputSchema: ClassifyQuestionInputSchema,
+    outputSchema: ClassifyQuestionOutputSchema,
   },
   async input => {
     const {output} = await prompt(input);
     return {
       question: input.question,
-      ...output!,
+      subject: output?.subject || '',
+      topic: output?.topic || '',
     };
   }
 );
