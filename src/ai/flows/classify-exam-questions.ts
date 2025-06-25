@@ -7,7 +7,6 @@
 import {ai} from '@/ai/genkit';
 import {
   type ClassifyQuestionsInput,
-  ClassifiedQuestionSchema,
   type ClassifiedQuestion,
 } from '@/ai/schemas';
 import {z} from 'zod';
@@ -52,7 +51,11 @@ export async function classifyQuestions(
 }
 
 // Define a schema for just the parts the AI will generate to save tokens.
-const AIClassificationResultSchema = ClassifiedQuestionSchema.omit({ question: true });
+const AIClassificationResultSchema = z.object({
+  subject: z.string().describe("The major medical subject the question belongs to (e.g., 'Cardiology')."),
+  topic: z.string().describe("The specific, granular topic being tested (e.g., 'Atrial Fibrillation')."),
+  rationale: z.string().optional().describe("A brief explanation for the chosen classification."),
+});
 type AIClassificationResult = z.infer<typeof AIClassificationResultSchema>;
 
 
