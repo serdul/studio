@@ -11,7 +11,7 @@ import { classifyExamQuestions } from './classify-exam-questions';
 import type { ClassifyExamQuestionsOutput } from './classify-exam-questions';
 
 const ProcessDocumentInputSchema = z.object({
-  fileDataUri: z.string().describe("A file (PDF) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:application/pdf;base64,<encoded_data>'."),
+  fileDataUri: z.string().describe("A file (PDF or image) as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
   masterTopicList: z.string().describe('A list of predefined topics.'),
 });
 export type ProcessDocumentInput = z.infer<typeof ProcessDocumentInputSchema>;
@@ -32,8 +32,8 @@ const extractQuestionsPrompt = ai.definePrompt({
     name: 'extractQuestionsFromDocument',
     input: { schema: z.object({ documentUri: z.string() }) },
     output: { schema: z.object({ questions: z.array(z.string().describe("A single, complete question. For MCQs, include the stem and all options. For SEQs, include the full question text, including the clinical scenario for sub-questions. Exclude any provided answers.")) }) },
-    prompt: `You are an expert AI assistant specializing in parsing medical exam documents. Your task is to meticulously extract all questions from the provided document. Analyze its visual layout across all pages and perform OCR as needed to extract the text.
-
+    system: `You are an expert AI assistant specializing in parsing medical exam documents. Your task is to meticulously extract all questions from the provided document. Analyze its visual layout across all pages and perform OCR as needed to extract the text.`,
+    prompt: `
 {{media url=documentUri}}
 
 Your goal is to identify and list every complete question in the entire document.
@@ -47,7 +47,7 @@ Your goal is to identify and list every complete question in the entire document
 
 1.  **IGNORE ALL ANSWERS:** Do not include any text that is an answer, a rationale, or a principle of management. This is the most important rule. For example, if you see "1. Full blood count" or "A. The correct answer is..." following a question, you must ignore it completely.
 2.  **IGNORE METADATA & NOISE:** Ignore all non-question text. This includes page headers, footers, page numbers, compiler names, timestamps, and watermarks. For example, you must ignore text like "GENERAL SIR JOHN KOTELAWALA DEFENCE UNIVERSITY", "SURGERY - MCQ", "Duration 02 Hours", "KDU SEQ Paediatrics", "Intake 27 Proper 27 August 2014", or "Scanned with CamScanner".
-3.  **OUTPUT FORMAT:** Return the result as a JSON object with a single key "questions" which contains an array of strings. Each string in the array must be a full, complete question. If you cannot find any questions that match the criteria, return an empty array for the "questions" key.
+3.  **OUTPUT FORMAT:** You MUST return the result as a valid JSON object. The object must have a single key "questions" which contains an array of strings. Each string in the array must be a full, complete question. If you cannot find any questions that match the criteria, you MUST return an empty array for the "questions" key, like this: \`{"questions": []}\`. Do not return any other format.
 `,
 });
 
@@ -78,7 +78,7 @@ const processDocumentFlow = ai.defineFlow(
     const results = await Promise.all(classificationPromises);
 
     // Step 3: Filter out any null results from errors and non-matches.
-    const classifiedTopics = results.filter((result): result is ClassifyExamQuestionsOutput => !!result && result.topic !== 'Other');
+    const classifiedTopics = results.filter((result): result is ClassifyExamQuestionsOutput => !!result && result.topic.trim().toLowerCase() !== 'other');
     
     return { questionsFound, classifiedTopics };
   }

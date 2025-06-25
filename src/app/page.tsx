@@ -125,6 +125,8 @@ export default function Home() {
                 return;
             }
 
+            setProgressState(prev => ({ ...prev!, percentage: 95, message: "Updating dashboard..." }));
+            
             const newSubjects: Subject[] = subjects.map(s => ({
                 ...s,
                 topics: s.topics.map(t => ({
