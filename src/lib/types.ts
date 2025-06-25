@@ -29,10 +29,3 @@ export interface ProgressLogEntry {
   message: string;
   status: 'loading' | 'done' | 'error';
 }
-
-export interface ClassifiedQuestion {
-  question: string;
-  subject: string;
-  topic: string;
-  rationale: string;
-}
